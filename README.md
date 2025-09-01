@@ -64,13 +64,13 @@ Create `.env.local` with:
 
 ```bash
 # Database
-DB_HOST=34.123.50.107
-DB_USER=gtadmin
-DB_NAME=openaccounting
-DB_PASSWORD=gtapp456$%^
+DB_HOST=your_db_host
+DB_USER=your_db_user
+DB_NAME=your_db_name
+DB_PASSWORD=your_secure_password
 
 # OA Server
-OA_BASE_URL=http://localhost:8080
+OA_BASE_URL=https://oa-server.example.com
 
 # Auth
 NEXTAUTH_SECRET=your-secret-here
@@ -91,7 +91,7 @@ gcloud run deploy oa-server \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars="DB_HOST=34.123.50.107,DB_USER=gtadmin,DB_NAME=openaccounting" \
+  --set-env-vars="DB_HOST=your_db_host,DB_USER=gtadmin,DB_NAME=openaccounting" \
   --set-secrets="DB_PASSWORD=OA_DB_PASSWORD:latest"
 ```
 

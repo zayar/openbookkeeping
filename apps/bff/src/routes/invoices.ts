@@ -109,20 +109,88 @@ router.post('/:id/confirm', requireJwtAuth, requireIdempotency, async (req, res)
         }
       })
 
-      // A/R (DR) and Revenue (CR); TaxPayable (CR) if exists
-      const lines: { accountId: string; debit: number; credit: number }[] = []
+      // Fetch invoice items to determine tax and inventory impacts
+      const items = await tx.invoice_items.findMany({ where: { invoiceId: invoice.id }, include: { products: true } })
+      
       const arAccountId = 'accounts_receivable'
       const revenueAccountId = 'revenue'
       const taxPayableAccountId = 'tax_payable'
+      const cogsAccountId = 'cost_of_goods_sold'
+      const inventoryAccountId = 'inventory'
 
-      const debit = Number(invoice.totalAmount)
-      const credit = Number(invoice.totalAmount)
+      let totalRevenue = Number(invoice.subtotal)
+      let totalTax = Number(invoice.taxAmount)
+      let totalCOGS = 0
 
-      await tx.journal_entries.create({ data: { id: `je_${Date.now()}_1`, journalId: journal.id, accountId: arAccountId, debitAmount: debit as any, creditAmount: 0 as any } })
-      await tx.journal_entries.create({ data: { id: `je_${Date.now()}_2`, journalId: journal.id, accountId: revenueAccountId, debitAmount: 0 as any, creditAmount: credit as any } })
+      // A/R (DR) for total amount
+      await tx.journal_entries.create({ 
+        data: { 
+          id: `je_${Date.now()}_ar`, 
+          journalId: journal.id, 
+          accountId: arAccountId, 
+          debitAmount: Number(invoice.totalAmount) as any, 
+          creditAmount: 0 as any 
+        } 
+      })
 
-      // Update totals
-      await tx.journals.update({ where: { id: journal.id }, data: { totalDebit: debit as any, totalCredit: credit as any } })
+      // Revenue (CR) for subtotal
+      await tx.journal_entries.create({ 
+        data: { 
+          id: `je_${Date.now()}_rev`, 
+          journalId: journal.id, 
+          accountId: revenueAccountId, 
+          debitAmount: 0 as any, 
+          creditAmount: totalRevenue as any 
+        } 
+      })
+
+      // Tax payable (CR) if any
+      if (totalTax > 0) {
+        await tx.journal_entries.create({ 
+          data: { 
+            id: `je_${Date.now()}_tax`, 
+            journalId: journal.id, 
+            accountId: taxPayableAccountId, 
+            debitAmount: 0 as any, 
+            creditAmount: totalTax as any 
+          } 
+        })
+      }
+
+      // COGS and Inventory for tracked items
+      for (const item of items) {
+        if (item.products?.trackInventory) {
+          const costPerUnit = Number(item.products.costPrice)
+          const quantity = Number(item.quantity)
+          const totalCost = costPerUnit * quantity
+          totalCOGS += totalCost
+
+          // DR COGS, CR Inventory
+          await tx.journal_entries.create({ 
+            data: { 
+              id: `je_${Date.now()}_cogs_${item.id}`, 
+              journalId: journal.id, 
+              accountId: cogsAccountId, 
+              debitAmount: totalCost as any, 
+              creditAmount: 0 as any 
+            } 
+          })
+          await tx.journal_entries.create({ 
+            data: { 
+              id: `je_${Date.now()}_inv_${item.id}`, 
+              journalId: journal.id, 
+              accountId: inventoryAccountId, 
+              debitAmount: 0 as any, 
+              creditAmount: totalCost as any 
+            } 
+          })
+        }
+      }
+
+      // Update journal totals (will be computed by checkLedgerBalance)
+      const totalDebits = Number(invoice.totalAmount) + totalCOGS
+      const totalCredits = totalRevenue + totalTax + totalCOGS
+      await tx.journals.update({ where: { id: journal.id }, data: { totalDebit: totalDebits as any, totalCredit: totalCredits as any } })
 
       const check = await checkLedgerBalance(tx as any, journal.id)
       if (!check.ok) {

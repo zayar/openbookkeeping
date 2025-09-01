@@ -32,10 +32,10 @@ import { correlationId } from './middleware/correlationId'
 // =============================================
 
 const app = express()
-const PORT = process.env.PORT || 3001
+const PORT = appConfig.PORT || 3001
 
 // Trust proxy only in production (Cloud Run)
-app.set('trust proxy', process.env.NODE_ENV === 'production')
+app.set('trust proxy', appConfig.NODE_ENV === 'production')
 
 // =============================================
 // SECURITY MIDDLEWARE
@@ -95,8 +95,8 @@ const createRateLimiter = (windowMs: number, max: number, message: string) =>
 
 // General rate limiter
 app.use(createRateLimiter(
-  parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+  appConfig.RATE_LIMIT_WINDOW_MS, // 15 minutes
+  appConfig.RATE_LIMIT_MAX_REQUESTS,
   'Too many requests from this IP, please try again later'
 ))
 
@@ -119,7 +119,7 @@ app.use(express.json({
   }
 }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
-app.use(cookieParser(process.env.COOKIE_SECRET || 'cookie-secret'))
+app.use(cookieParser(appConfig.COOKIE_SECRET || 'cookie-secret'))
 
 // Correlation ID header
 app.use(correlationId)
@@ -220,7 +220,7 @@ app.get('/', (req, res) => {
   res.json({ 
     message: 'Open Accounting BFF API',
     version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
+    environment: appConfig.NODE_ENV,
     timestamp: new Date().toISOString()
   })
 })
@@ -295,7 +295,7 @@ app.use((error: any, req: express.Request, res: express.Response, next: express.
   })
 
   // Don't expose error details in production
-  const isDevelopment = process.env.NODE_ENV === 'development'
+  const isDevelopment = appConfig.NODE_ENV === 'development'
   
   res.status(error.status || 500).json({
     success: false,
@@ -317,7 +317,7 @@ async function startServer() {
     // Start server
     const server = app.listen(PORT, () => {
       logger.info(`🚀 BFF Server running on port ${PORT}`)
-      logger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`)
+      logger.info(`📝 Environment: ${appConfig.NODE_ENV}`)
       logger.info(`🔐 CORS origins: ${allowedOrigins.join(', ')}`)
       logger.info(`💾 Database: Connected`)
       logger.info(`🔍 Health check: http://localhost:${PORT}/health`)
