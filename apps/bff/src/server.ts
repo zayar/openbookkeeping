@@ -21,6 +21,8 @@ import warehousesRoutes from './routes/warehouses'
 import branchesRoutes from './routes/branches'
 import taxesRoutes from './routes/taxes'
 import salespersonsRoutes from './routes/salespersons'
+import invoicesRoutes from './routes/invoices'
+import paymentsRoutes from './routes/payments'
 // import vendorsRoutes from './routes/vendors' // DISABLED: vendors table doesn't exist
 import metricsRoutes from './routes/metrics'
 import { correlationId } from './middleware/correlationId'
@@ -241,6 +243,9 @@ app.use('/api/branches', branchesRoutes)
 app.use('/api/taxes', taxesRoutes)
 // Salespersons
 app.use('/api/salespersons', salespersonsRoutes)
+// Invoices & Payments
+app.use('/api/invoices', invoicesRoutes)
+app.use('/api/payments', paymentsRoutes)
 // Vendors - DISABLED: vendors table doesn't exist
 // app.use('/api/vendors', vendorsRoutes)
 // Metrics
