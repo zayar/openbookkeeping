@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { logger } from '../utils/logger'
+import { oaClient } from './oaClient'
 
 // =============================================
 // CLOUD SQL ONLY DATABASE SERVICE
@@ -64,6 +65,7 @@ export class CloudSQLHealthService {
     status: 'healthy' | 'unhealthy'
     checks: {
       cloudSQLDatabase: boolean
+      openAccounting: boolean
     }
     timestamp: string
   }> {
@@ -73,10 +75,13 @@ export class CloudSQLHealthService {
       
       logger.info('✅ Cloud SQL health check passed')
       
+      const oaOk = await oaClient.healthCheck()
+      const isHealthy = oaOk.success
       return {
-        status: 'healthy',
+        status: isHealthy ? 'healthy' : 'unhealthy',
         checks: {
-          cloudSQLDatabase: true
+          cloudSQLDatabase: true,
+          openAccounting: isHealthy
         },
         timestamp: new Date().toISOString()
       }
@@ -90,7 +95,8 @@ export class CloudSQLHealthService {
       return {
         status: 'unhealthy',
         checks: {
-          cloudSQLDatabase: false
+          cloudSQLDatabase: false,
+          openAccounting: false
         },
         timestamp: new Date().toISOString()
       }

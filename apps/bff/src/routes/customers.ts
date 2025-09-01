@@ -1,6 +1,7 @@
 import express from 'express'
 import { requireJwtAuth } from '../middleware/jwtAuth'
 import { prisma } from '../services/database.cloud-sql-only'
+import { CustomersListResponse, CustomerResponse } from '../schemas/api'
 
 const router = express.Router()
 
@@ -11,7 +12,12 @@ router.get('/', requireJwtAuth, async (req, res) => {
       where: { organizationId: req.auth!.organizationId },
       orderBy: { createdAt: 'desc' }
     })
-    res.json({ success: true, data: customers })
+    const payload = { success: true as const, data: customers }
+    const parsed = CustomersListResponse.safeParse(payload)
+    if (!parsed.success) {
+      return res.status(500).json({ success: false, error: 'Response schema validation failed' })
+    }
+    res.json(parsed.data)
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch customers' })
   }
@@ -59,7 +65,12 @@ router.post('/', requireJwtAuth, async (req, res) => {
         remarks
       }
     })
-    res.json({ success: true, data: customer })
+    const payload = { success: true as const, data: customer }
+    const parsed = CustomerResponse.safeParse(payload)
+    if (!parsed.success) {
+      return res.status(500).json({ success: false, error: 'Response schema validation failed' })
+    }
+    res.json(parsed.data)
   } catch (error: any) {
     const msg = error?.code === 'P2002' ? 'Customer with this email already exists' : 'Failed to create customer'
     res.status(400).json({ success: false, error: msg })

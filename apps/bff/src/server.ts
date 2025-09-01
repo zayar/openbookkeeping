@@ -23,6 +23,7 @@ import taxesRoutes from './routes/taxes'
 import salespersonsRoutes from './routes/salespersons'
 // import vendorsRoutes from './routes/vendors' // DISABLED: vendors table doesn't exist
 import metricsRoutes from './routes/metrics'
+import { correlationId } from './middleware/correlationId'
 
 // =============================================
 // EXPRESS APP SETUP
@@ -117,6 +118,9 @@ app.use(express.json({
 }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 app.use(cookieParser(process.env.COOKIE_SECRET || 'cookie-secret'))
+
+// Correlation ID header
+app.use(correlationId)
 
 // =============================================
 // SESSION CONFIGURATION (DISABLED FOR DEBUGGING)
