@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { loadConfig } from '../../../packages/config/src/loadConfig'
 import { AuthenticatedRequest } from '../middleware/auth';
 import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
@@ -12,7 +13,8 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     const { orgId } = req.user!;
     const { page = 1, limit = 50, startDate, endDate } = req.query;
     
-    let url = `${process.env.OA_BASE_URL}/organizations/${orgId}/transactions?page=${page}&limit=${limit}`;
+    const { OA_BASE_URL } = loadConfig()
+    let url = `${OA_BASE_URL}/organizations/${orgId}/transactions?page=${page}&limit=${limit}`;
     if (startDate) url += `&startDate=${startDate}`;
     if (endDate) url += `&endDate=${endDate}`;
     
@@ -36,7 +38,8 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
     const { orgId } = req.user!;
     const { id } = req.params;
     
-    const response = await fetch(`${process.env.OA_BASE_URL}/organizations/${orgId}/transactions/${id}`);
+    const { OA_BASE_URL: BASE } = loadConfig()
+    const response = await fetch(`${BASE}/organizations/${orgId}/transactions/${id}`);
     
     if (!response.ok) {
       if (response.status === 404) {
@@ -88,7 +91,8 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
       organizationId: orgId
     };
     
-    const response = await fetch(`${process.env.OA_BASE_URL}/organizations/${orgId}/transactions`, {
+    const { OA_BASE_URL: B } = loadConfig()
+    const response = await fetch(`${B}/organizations/${orgId}/transactions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(entryData)
@@ -147,7 +151,8 @@ router.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
       }));
     }
     
-    const response = await fetch(`${process.env.OA_BASE_URL}/organizations/${orgId}/transactions/${id}`, {
+    const { OA_BASE_URL: C } = loadConfig()
+    const response = await fetch(`${C}/organizations/${orgId}/transactions/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updateData)
@@ -207,9 +212,8 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
 // Helper function to check idempotency
 async function checkIdempotency(orgId: string, idempotencyKey: string) {
   try {
-    const response = await fetch(
-      `${process.env.OA_BASE_URL}/organizations/${orgId}/transactions?reference=${idempotencyKey}`
-    );
+    const { OA_BASE_URL: D } = loadConfig()
+    const response = await fetch(`${D}/organizations/${orgId}/transactions?reference=${idempotencyKey}`);
     
     if (response.ok) {
       const entries = await response.json();

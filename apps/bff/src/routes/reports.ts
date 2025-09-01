@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { loadConfig } from '../../../packages/config/src/loadConfig'
 import { AuthenticatedRequest } from '../middleware/auth';
 import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
@@ -11,7 +12,8 @@ router.get('/trial-balance', async (req: AuthenticatedRequest, res: Response) =>
     const { orgId } = req.user!;
     const { asOfDate, includeZeroBalances = false } = req.query;
     
-    let url = `${process.env.OA_BASE_URL}/organizations/${orgId}/reports/trial-balance`;
+    const { OA_BASE_URL } = loadConfig()
+    let url = `${OA_BASE_URL}/organizations/${orgId}/reports/trial-balance`;
     const params = new URLSearchParams();
     if (asOfDate) params.append('asOfDate', asOfDate as string);
     if (includeZeroBalances) params.append('includeZeroBalances', 'true');
@@ -40,7 +42,8 @@ router.get('/ledger', async (req: AuthenticatedRequest, res: Response) => {
     const { orgId } = req.user!;
     const { accountId, startDate, endDate, page = 1, limit = 100 } = req.query;
     
-    let url = `${process.env.OA_BASE_URL}/organizations/${orgId}/reports/ledger`;
+    const { OA_BASE_URL: BASE } = loadConfig()
+    let url = `${BASE}/organizations/${orgId}/reports/ledger`;
     const params = new URLSearchParams();
     if (accountId) params.append('accountId', accountId as string);
     if (startDate) params.append('startDate', startDate as string);

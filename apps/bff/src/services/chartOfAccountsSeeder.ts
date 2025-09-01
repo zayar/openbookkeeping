@@ -1,5 +1,6 @@
 import { defaultChartOfAccounts } from '../data/chartOfAccounts';
 import { logger } from '../utils/logger';
+import { loadConfig } from '../../../packages/config/src/loadConfig'
 
 export interface SeededAccount {
   id: string;
@@ -78,7 +79,7 @@ export class ChartOfAccountsSeeder {
     baseCurrency: string
   ): Promise<SeededAccount | null> {
     try {
-      const baseUrl = process.env.OA_BASE_URL;
+      const { OA_BASE_URL: baseUrl } = loadConfig();
       if (!baseUrl) {
         throw new Error('OA_BASE_URL environment variable not set');
       }

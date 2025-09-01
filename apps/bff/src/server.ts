@@ -4,7 +4,7 @@ import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import cookieParser from 'cookie-parser'
 import session from 'express-session'
-import { loadConfig, parseAllowedOrigins } from '@openaccounting/config'
+import { loadConfig, parseAllowedOrigins } from '../../../packages/config/src/loadConfig'
 
 // Load environment variables (validated)
 const appConfig = loadConfig()

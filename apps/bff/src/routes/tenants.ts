@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { loadConfig } from '../../../packages/config/src/loadConfig'
 import { v4 as uuidv4 } from 'uuid';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { createError } from '../middleware/errorHandler';
@@ -13,7 +14,8 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
     const { orgId } = req.user!;
     
     // Fetch organization details from OA
-    const response = await fetch(`${process.env.OA_BASE_URL}/organizations/${orgId}`);
+    const { OA_BASE_URL } = loadConfig()
+    const response = await fetch(`${OA_BASE_URL}/organizations/${orgId}`);
     
     if (!response.ok) {
       throw createError('Failed to fetch organization', 500);
@@ -40,7 +42,8 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     const orgId = uuidv4();
     
     // Create organization in OA
-    const orgResponse = await fetch(`${process.env.OA_BASE_URL}/organizations`, {
+    const { OA_BASE_URL: BASE } = loadConfig()
+    const orgResponse = await fetch(`${BASE}/organizations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -102,7 +105,8 @@ router.put('/', async (req: AuthenticatedRequest, res: Response) => {
     if (name) updateData.name = name;
     if (baseCurrency) updateData.baseCurrency = baseCurrency;
     
-    const response = await fetch(`${process.env.OA_BASE_URL}/organizations/${orgId}`, {
+    const { OA_BASE_URL: B } = loadConfig()
+    const response = await fetch(`${B}/organizations/${orgId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updateData)

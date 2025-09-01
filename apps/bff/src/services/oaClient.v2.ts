@@ -1,4 +1,5 @@
 import fetch from 'node-fetch'
+import { loadConfig } from '../../../packages/config/src/loadConfig'
 import { logger } from '../utils/logger'
 import { z } from 'zod'
 
@@ -37,8 +38,9 @@ class HardenedOAClient {
   private circuitBreaker: Map<string, CircuitBreakerState> = new Map()
 
   constructor(config: Partial<OAConfig> = {}) {
+    const cfg = loadConfig()
     this.config = {
-      baseUrl: process.env.OA_BASE_URL || 'http://localhost:8080',
+      baseUrl: cfg.OA_BASE_URL,
       apiKey: process.env.OA_API_KEY || '',
       acceptVersion: process.env.OA_ACCEPT_VERSION || '1.4.0',
       timeout: 5000, // 5s timeout
