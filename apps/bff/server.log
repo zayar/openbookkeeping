@@ -1,0 +1,57 @@
+🚀 Starting Clean BFF Server...
+🔍 Testing database connection...
+✅ Database connected: [ { db: 'cashflowdb', time: 2025-08-24T08:51:39.000Z } ]
+
+🎉 ===================================
+🚀 Clean BFF Server Started!
+🎉 ===================================
+📡 Port: 3001
+💾 Database: Cloud SQL
+🕒 Time: 2025-08-24T08:51:39.438Z
+
+🔗 Endpoints:
+   GET    /health
+   POST   /auth/login
+   GET    /api/accounts (CRUD)
+   GET    /api/items (CRUD + Inventory)
+   GET    /api/customers (CRUD)
+   GET    /api/bank-accounts (CRUD)
+   GET    /api/vendors (CRUD)
+   GET    /api/invoices (CRUD + Workflow)
+   GET    /api/branches (CRUD)
+   GET    /api/warehouses (CRUD + Management)
+   GET    /api/inventory-transfers (CRUD + Workflow)
+   POST   /api/invoices/:id/confirm
+   POST   /api/invoices/:id/payments
+   GET    /api/organizations
+   GET    /api/users
+   GET    /api/metrics
+   GET    /api/info
+
+✅ Ready for requests!
+2025-08-24T08:52:31.101Z - POST /auth/login
+🔐 Login attempt: admin@default.com
+✅ User found: admin@default.com
+2025-08-24T08:52:32.893Z - GET /api/metrics
+📊 Getting metrics...
+2025-08-24T08:52:34.379Z - GET /api/metrics
+📊 Getting metrics...
+2025-08-24T08:52:37.152Z - GET /api/items
+2025-08-24T08:52:42.732Z - GET /api/items
+2025-08-24T08:52:44.106Z - GET /api/accounts
+2025-08-24T08:52:44.111Z - GET /api/warehouses
+2025-08-24T08:52:44.608Z - GET /api/warehouses
+2025-08-24T08:52:46.308Z - GET /api/accounts
+2025-08-24T08:54:16.690Z - POST /api/items
+2025-08-24T08:54:27.128Z - GET /api/items
+2025-08-24T08:54:31.598Z - GET /api/items
+2025-08-24T08:54:54.325Z - GET /api/items/item_1756025661405
+2025-08-24T08:54:56.729Z - GET /api/items/item_1756025661405
+2025-08-24T09:01:55.163Z - POST /auth/login
+🔐 Login attempt: admin@default.com
+✅ User found: admin@default.com
+2025-08-24T09:01:57.849Z - GET /api/items/item_1756025661405
+2025-08-24T09:02:44.111Z - POST /auth/login
+🔐 Login attempt: admin@default.com
+✅ User found: admin@default.com
+2025-08-24T09:02:45.334Z - POST /api/items

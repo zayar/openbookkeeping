@@ -1,0 +1,4982 @@
+// Clean, Simple BFF Server with Direct Prisma CRUD
+const express = require('express')
+const cors = require('cors')
+const { PrismaClient } = require('@prisma/client')
+require('dotenv').config()
+
+// Import centralized error handling
+const { 
+  errorHandler, 
+  asyncHandler, 
+  notFoundHandler,
+  ValidationError,
+  AuthenticationError,
+  AuthorizationError,
+  NotFoundError,
+  BusinessLogicError,
+  validators,
+  BUSINESS_ERROR_CODES
+} = require('./middleware/error-handler')
+
+// Import RBAC system
+const {
+  ROLES,
+  requirePermission,
+  requireAnyPermission,
+  requireRole,
+  addUserPermissions
+} = require('./middleware/rbac')
+
+// Redis Cache Service
+const {
+  cacheService,
+  CACHE_TTL,
+  accountsCacheMiddleware,
+  itemsCacheMiddleware,
+  customersCacheMiddleware,
+  bankAccountsCacheMiddleware,
+  vendorsCacheMiddleware,
+  metricsCacheMiddleware,
+  invalidateAccountsCache,
+  invalidateItemsCache,
+  invalidateCustomersCache,
+  invalidateBankAccountsCache,
+  invalidateVendorsCache,
+  invalidateInvoicesCache
+} = require('./cache-service')
+
+// Inventory Service
+const InventoryService = require('./services/inventory-service')
+const inventoryService = new InventoryService()
+const warehouseService = require('./services/warehouse-service')
+const inventoryTransferService = require('./services/inventory-transfer-service')
+
+// Balance Integrity Middleware
+const {
+  idempotencyMiddleware,
+  postingPeriodMiddleware,
+  prohibitDeleteMiddleware,
+  auditMiddleware,
+  safeMutationWrapper
+} = require('./middleware/balance-integrity')
+
+console.log('🚀 Starting Clean BFF Server...')
+
+// =============================================
+// SETUP
+// =============================================
+
+const app = express()
+const PORT = process.env.PORT || 3001
+const prisma = new PrismaClient()
+
+// Middleware
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true
+}))
+
+app.use(express.json())
+
+// Request logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`)
+  next()
+})
+
+// =============================================
+// HEALTH & INFO ROUTES
+// =============================================
+
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Clean BFF Server Running',
+    database: 'Cloud SQL Connected',
+    timestamp: new Date().toISOString()
+  })
+})
+
+app.get('/health', async (req, res) => {
+  try {
+    // Check database
+    await prisma.$queryRaw`SELECT 1`
+    
+    // Check Redis
+    const redisHealth = await cacheService.healthCheck()
+    
+    res.json({ 
+      status: 'healthy', 
+      database: 'connected',
+      redis: redisHealth.healthy ? 'connected' : 'disconnected',
+      ...(redisHealth.latency && { redisLatency: `${redisHealth.latency}ms` }),
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    res.status(503).json({ status: 'unhealthy', error: error.message })
+  }
+})
+
+// Cache monitoring endpoint
+app.get('/api/cache/stats', validateToken, async (req, res) => {
+  try {
+    const health = await cacheService.healthCheck()
+    const stats = await cacheService.getStats()
+    
+    res.json({
+      success: true,
+      data: {
+        health,
+        stats,
+        timestamp: new Date().toISOString()
+      }
+    })
+  } catch (error) {
+    console.error('Cache stats error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// =============================================
+// AUTHENTICATION
+// =============================================
+
+// Simple login endpoint
+app.post('/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body
+    
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required'
+      })
+    }
+    
+    console.log('🔐 Login attempt:', email)
+    
+    // Find user by email
+    const user = await prisma.users.findFirst({
+      where: { email },
+      include: {
+        organization_members: {
+          include: {
+            organizations: true
+          }
+        }
+      }
+    })
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid credentials'
+      })
+    }
+    
+    // For demo purposes, accept any password for existing users
+    // In production, you'd verify the hashed password
+    console.log('✅ User found:', user.email)
+    
+    // Create simple JWT-like token (for demo)
+    const token = Buffer.from(JSON.stringify({
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      organizationId: user.organization_members[0]?.organizationId || null,
+      exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+    })).toString('base64')
+    
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name
+        },
+        organizations: user.organization_members.map(member => ({
+          id: member.organizations.id,
+          name: member.organizations.name,
+          role: member.role
+        }))
+      }
+    })
+  } catch (error) {
+    console.error('Login error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Login failed'
+    })
+  }
+})
+
+// Logout endpoint
+app.post('/auth/logout', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized: missing token'
+      })
+    }
+    
+    const token = authHeader.substring(7)
+    
+    // In a production system, you might:
+    // 1. Add the token to a blacklist
+    // 2. Invalidate the token in Redis
+    // 3. Log the logout event
+    
+    console.log('🔓 User logged out successfully')
+    
+    // Clear any cached user data
+    try {
+      const decoded = JSON.parse(Buffer.from(token, 'base64').toString())
+      if (decoded.organizationId) {
+        // Invalidate user-specific cache
+        await cacheService.invalidateOrgPattern(decoded.organizationId, 'user*')
+        console.log('🧹 Cleared user cache on logout')
+      }
+    } catch (cacheError) {
+      console.log('Cache cleanup on logout failed:', cacheError.message)
+    }
+    
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    })
+  } catch (error) {
+    console.error('Logout error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Logout failed'
+    })
+  }
+})
+
+// Simple token validation middleware
+function validateToken(req, res, next) {
+  // Use mock auth in test environment
+  if (process.env.NODE_ENV === 'test' && global.mockAuth) {
+    req.auth = global.mockAuth
+    return next()
+  }
+  
+  const authHeader = req.headers.authorization
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized: missing token'
+    })
+  }
+  
+  try {
+    const token = authHeader.substring(7)
+    const decoded = JSON.parse(Buffer.from(token, 'base64').toString())
+    
+    if (decoded.exp < Date.now()) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized: token expired'
+      })
+    }
+    
+    req.auth = decoded
+    next()
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      error: 'Unauthorized: invalid token'
+    })
+  }
+}
+
+// =============================================
+// ACCOUNTS CRUD
+// =============================================
+
+// List all accounts (with optional auth)
+app.get('/api/accounts', validateToken, requirePermission('accounts:read'), accountsCacheMiddleware, async (req, res) => {
+  try {
+    // Get user's organization from token
+    const organizationId = req.auth?.organizationId
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+    
+    // Build where clause with optional type filtering
+    const whereClause = {
+      organizationId: organizationId,
+      isActive: true
+    }
+    
+    // Add type filtering if provided
+    if (req.query.type) {
+      const types = req.query.type.split(',').map(t => t.trim())
+      if (types.length === 1) {
+        whereClause.type = types[0]
+      } else {
+        whereClause.type = { in: types }
+      }
+    }
+    
+    const accounts = await prisma.ledger_accounts.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        type: true,
+        organizationId: true,
+        isActive: true
+      },
+      orderBy: { code: 'asc' }
+    })
+    
+    res.json({
+      success: true,
+      data: accounts
+    })
+  } catch (error) {
+    console.error('Get accounts error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Get single account
+app.get('/api/accounts/:id', async (req, res) => {
+  try {
+    const account = await prisma.ledger_accounts.findUnique({
+      where: { id: req.params.id }
+    })
+    
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      })
+    }
+    
+    res.json({
+      success: true,
+      data: account
+    })
+  } catch (error) {
+    console.error('Get account error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Create account
+app.post('/api/accounts', validateToken, invalidateAccountsCache, async (req, res) => {
+  try {
+    const { code, name, type } = req.body
+    const organizationId = req.auth?.organizationId
+    
+    if (!code || !name || !type) {
+      return res.status(400).json({
+        success: false,
+        error: 'Code, name, and type are required'
+      })
+    }
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+    
+    // Check for existing account with same code in this organization
+    const existingAccount = await prisma.ledger_accounts.findFirst({
+      where: {
+        organizationId,
+        code
+      }
+    })
+    
+    if (existingAccount) {
+      return res.status(400).json({
+        success: false,
+        error: `Account with code ${code} already exists in this organization`
+      })
+    }
+    
+    const account = await prisma.ledger_accounts.create({
+      data: {
+        id: `acc_${Date.now()}`,
+        code,
+        name,
+        type,
+        organizationId,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    })
+    
+    res.status(201).json({
+      success: true,
+      data: account
+    })
+  } catch (error) {
+    console.error('Create account error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Update account
+app.put('/api/accounts/:id', async (req, res) => {
+  try {
+    const { code, name, type, isActive } = req.body
+    
+    const account = await prisma.ledger_accounts.update({
+      where: { id: req.params.id },
+      data: {
+        ...(code && { code }),
+        ...(name && { name }),
+        ...(type && { type }),
+        ...(isActive !== undefined && { isActive }),
+        updatedAt: new Date()
+      }
+    })
+    
+    res.json({
+      success: true,
+      data: account
+    })
+  } catch (error) {
+    console.error('Update account error:', error)
+    if (error.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
+  }
+})
+
+// Delete account
+app.delete('/api/accounts/:id', async (req, res) => {
+  try {
+    await prisma.ledger_accounts.delete({
+      where: { id: req.params.id }
+    })
+    
+    res.json({
+      success: true,
+      message: 'Account deleted successfully'
+    })
+  } catch (error) {
+    console.error('Delete account error:', error)
+    if (error.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        error: 'Account not found'
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
+  }
+})
+
+// =============================================
+// ORGANIZATIONS CRUD
+// =============================================
+
+app.get('/api/organizations', async (req, res) => {
+  try {
+    const organizations = await prisma.organizations.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        baseCurrency: true
+      },
+      orderBy: { name: 'asc' }
+    })
+    
+    res.json({
+      success: true,
+      data: organizations
+    })
+  } catch (error) {
+    console.error('Get organizations error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// =============================================
+// USERS CRUD
+// =============================================
+
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await prisma.users.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true
+      },
+      orderBy: { name: 'asc' }
+    })
+    
+    res.json({
+      success: true,
+      data: users
+    })
+  } catch (error) {
+    console.error('Get users error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// =============================================
+// ITEMS/PRODUCTS CRUD
+// =============================================
+
+// List all items/products
+app.get('/api/items', validateToken, itemsCacheMiddleware, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const items = await prisma.products.findMany({
+      where: { organizationId },
+      include: {
+        ledger_accounts_products_salesAccountIdToledger_accounts: true,
+        ledger_accounts_products_purchaseAccountIdToledger_accounts: true,
+        inventory_account: true
+      },
+      orderBy: { name: 'asc' }
+    })
+    
+    // Add inventory levels and stock on hand for tracked items
+    const itemsWithInventory = await Promise.all(
+      items.map(async (item) => {
+        if (item.trackInventory) {
+          const inventoryLevels = await inventoryService.getInventoryLevels(item.id, organizationId)
+          // Calculate total stock on hand across all warehouses
+          const stockOnHand = inventoryLevels.reduce((total, level) => 
+            total + parseFloat(level.totalQuantity || 0), 0)
+          return { ...item, inventoryLevels, stockOnHand }
+        }
+        return { ...item, stockOnHand: item.type === 'goods' ? 0 : undefined }
+      })
+    )
+    
+    res.json({
+      success: true,
+      data: itemsWithInventory
+    })
+  } catch (error) {
+    console.error('Get items error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Get single item
+app.get('/api/items/:id', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const item = await prisma.products.findFirst({
+      where: { 
+        id: req.params.id,
+        organizationId 
+      },
+      include: {
+        ledger_accounts_products_salesAccountIdToledger_accounts: true,
+        ledger_accounts_products_purchaseAccountIdToledger_accounts: true,
+        inventory_account: true
+      }
+    })
+    
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        error: 'Item not found'
+      })
+    }
+    
+    // Calculate stock on hand for tracked items
+    let itemWithStock = { ...item }
+    if (item.trackInventory) {
+      const inventoryLevels = await inventoryService.getInventoryLevels(item.id, organizationId)
+      const stockOnHand = inventoryLevels.reduce((total, level) => 
+        total + parseFloat(level.totalQuantity || 0), 0)
+      itemWithStock = { ...item, inventoryLevels, stockOnHand }
+    } else {
+      itemWithStock = { ...item, stockOnHand: item.type === 'goods' ? 0 : undefined }
+    }
+    
+    res.json({
+      success: true,
+      data: itemWithStock
+    })
+  } catch (error) {
+    console.error('Get item error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Create item
+app.post('/api/items', validateToken, requirePermission('items:write'), invalidateItemsCache, asyncHandler(async (req, res) => {
+    const organizationId = req.auth?.organizationId
+    
+    validators.organizationAccess(req)
+
+    const { 
+      name, 
+      sku, 
+      description, 
+      type, 
+      costPrice, 
+      sellingPrice, 
+      salesAccountId, 
+      purchaseAccountId, 
+      trackInventory,
+      inventoryAccountId,
+      openingBalances = []
+    } = req.body
+    
+    // Debug: Log the incoming request for opening balance debugging
+    console.log('🔍 POST /api/items - Debug Info:')
+    console.log(`   - trackInventory: ${trackInventory}`)
+    console.log(`   - openingBalances length: ${openingBalances.length}`)
+    console.log(`   - openingBalances:`, JSON.stringify(openingBalances, null, 2))
+    
+    validators.required(name, 'Name')
+    validators.required(costPrice, 'Cost price')
+    validators.required(sellingPrice, 'Selling price')
+    validators.positive(costPrice, 'Cost price')
+    validators.positive(sellingPrice, 'Selling price')
+    
+    // Validate inventory tracking requirements
+    if (trackInventory && type !== 'goods') {
+      throw new ValidationError('Inventory tracking is only available for goods items')
+    }
+    
+    if (trackInventory && !inventoryAccountId) {
+      throw new ValidationError('Inventory account is required when inventory tracking is enabled')
+    }
+    
+    // Validate inventory account is of type 'stock'
+    if (inventoryAccountId) {
+      const inventoryAccount = await prisma.ledger_accounts.findUnique({
+        where: { id: inventoryAccountId }
+      })
+      
+      if (!inventoryAccount || inventoryAccount.type !== 'stock') {
+        throw new ValidationError('Selected account must be of type Stock')
+      }
+    }
+    
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the item
+      const item = await tx.products.create({
+        data: {
+          id: `item_${Date.now()}`,
+          name,
+          sku,
+          description,
+          type: type || 'goods',
+          costPrice: parseFloat(costPrice),
+          sellingPrice: parseFloat(sellingPrice),
+          trackInventory: trackInventory || false,
+          inventoryValuationMethod: 'FIFO',
+          organizationId: organizationId || 'cmefcazyk0003eo15jf5azevc',
+          currency: 'MMK',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          // Use relation syntax for account connections
+          ...(salesAccountId && {
+            ledger_accounts_products_salesAccountIdToledger_accounts: {
+              connect: { id: salesAccountId }
+            }
+          }),
+          ...(purchaseAccountId && {
+            ledger_accounts_products_purchaseAccountIdToledger_accounts: {
+              connect: { id: purchaseAccountId }
+            }
+          }),
+          ...(trackInventory && inventoryAccountId && {
+            inventory_account: {
+              connect: { id: inventoryAccountId }
+            }
+          })
+        }
+      })
+      
+      // Create opening balances if inventory tracking is enabled
+      console.log(`🔧 Checking opening balance creation:`)
+      console.log(`   - trackInventory: ${trackInventory}`)
+      console.log(`   - openingBalances.length: ${openingBalances.length}`)
+      console.log(`   - Condition met: ${trackInventory && openingBalances.length > 0}`)
+      
+      if (trackInventory && openingBalances.length > 0) {
+        console.log(`💰 Creating opening balances for ${openingBalances.length} warehouses`)
+        // Get Opening Balance Equity account
+        const openingBalanceAccount = await tx.ledger_accounts.findFirst({
+          where: {
+            organizationId,
+            OR: [
+              { name: { contains: 'Opening Balance' } },
+              { code: '3900' },
+              { type: 'equity' }
+            ]
+          }
+        })
+        
+        if (!openingBalanceAccount) {
+          throw new Error('Opening Balance Equity account not found. Please create an Opening Balance Equity account first.')
+        }
+        
+        for (const opening of openingBalances) {
+          console.log(`🔍 Processing opening balance:`, opening)
+          console.log(`   - openingStock: ${opening.openingStock}`)
+          console.log(`   - openingStockValue: ${opening.openingStockValue}`)
+          console.log(`   - Condition check: ${opening.openingStock > 0 && opening.openingStockValue > 0}`)
+          
+          if (opening.openingStock > 0 && opening.openingStockValue > 0) {
+            const quantity = parseFloat(opening.openingStock)
+            const unitCost = parseFloat(opening.openingStockValue) // This is already per unit cost from UI
+            const totalValue = quantity * unitCost // Calculate total value
+            
+            console.log(`   ✅ Creating opening balance - Qty: ${quantity}, Cost: ${unitCost}, Total: ${totalValue}`)
+            
+            try {
+              // Create journal entry for opening balance (Double-Entry)
+            const journal = await tx.journals.create({
+              data: {
+                id: `journal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                organizationId,
+                journalNumber: `OB-${item.name}-${Date.now()}`,
+                journalDate: new Date(),
+                reference: `Opening Balance - ${item.name}`,
+                notes: `Opening inventory balance for ${item.name} in warehouse ${opening.warehouseId}`,
+                totalDebit: totalValue,
+                totalCredit: totalValue,
+                status: 'active',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                journal_entries: {
+                  create: [
+                    {
+                      id: `entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_1`,
+                      accountId: inventoryAccountId,
+                      description: `Opening inventory - ${item.name}`,
+                      debitAmount: totalValue,
+                      creditAmount: 0,
+                      createdAt: new Date(),
+                      updatedAt: new Date()
+                    },
+                    {
+                      id: `entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_2`,
+                      accountId: openingBalanceAccount.id,
+                      description: `Opening balance equity - ${item.name}`,
+                      debitAmount: 0,
+                      creditAmount: totalValue,
+                      createdAt: new Date(),
+                      updatedAt: new Date()
+                    }
+                  ]
+                }
+              }
+            })
+            
+            // Create inventory opening balance record
+            await tx.inventory_opening_balances.create({
+              data: {
+                id: `opening_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                itemId: item.id,
+                warehouseId: opening.warehouseId,
+                quantity,
+                unitCost,
+                totalValue,
+                asOfDate: new Date(),
+                journalId: journal.id, // Link to journal entry
+                createdAt: new Date(),
+                updatedAt: new Date()
+              }
+            })
+            
+            // Create inventory layer for FIFO tracking
+            await tx.inventory_layers.create({
+              data: {
+                id: `layer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                itemId: item.id,
+                warehouseId: opening.warehouseId,
+                sourceType: 'opening_balance',
+                sourceId: `opening_${item.id}_${opening.warehouseId}`,
+                quantityRemaining: quantity,
+                unitCost,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              }
+            })
+            
+            console.log(`   📊 Successfully created all records for warehouse ${opening.warehouseId}`)
+            
+            } catch (error) {
+              console.error(`   ❌ Error creating opening balance for warehouse ${opening.warehouseId}:`, error)
+              throw error
+            }
+          }
+        }
+      } else {
+        console.log('🔧 Skipping opening balance creation (condition not met)')
+      }
+      
+      return item
+    }, {
+      timeout: 15000 // 15 seconds timeout for inventory operations
+    })
+    
+    // Calculate stock on hand for tracked items
+    let itemWithStock = { ...result }
+    if (result.trackInventory) {
+      console.log(`🔢 Calculating stock on hand for item ${result.id}`)
+      const inventoryLevels = await inventoryService.getInventoryLevels(result.id, organizationId)
+      console.log(`   - Found ${inventoryLevels.length} inventory levels`)
+      const stockOnHand = inventoryLevels.reduce((total, level) => 
+        total + parseFloat(level.totalQuantity || 0), 0)
+      console.log(`   - Total stock on hand: ${stockOnHand}`)
+      itemWithStock = { ...result, inventoryLevels, stockOnHand }
+    } else {
+      itemWithStock = { ...result, stockOnHand: result.type === 'goods' ? 0 : undefined }
+    }
+    
+    res.status(201).json({
+      success: true,
+      data: itemWithStock
+    })
+  }))
+
+// Update item
+app.put('/api/items/:id', validateToken, requirePermission('items:write'), invalidateItemsCache, asyncHandler(async (req, res) => {
+    const organizationId = req.auth?.organizationId
+    
+    validators.organizationAccess(req)
+
+    const { 
+      name, 
+      sku, 
+      description, 
+      type, 
+      costPrice, 
+      sellingPrice, 
+      salesAccountId, 
+      purchaseAccountId, 
+      isActive,
+      trackInventory,
+      inventoryAccountId,
+      reorderPoint,
+      openingBalances = []
+    } = req.body
+    
+    // Verify item belongs to organization
+    const existingItem = await prisma.products.findFirst({
+      where: { id: req.params.id, organizationId }
+    })
+    
+    if (!existingItem) {
+      throw new NotFoundError('Item')
+    }
+    
+    // Check if inventory tracking can be disabled
+    if (trackInventory === false && existingItem.trackInventory) {
+      const canDisable = await inventoryService.canDisableInventoryTracking(req.params.id)
+      if (!canDisable) {
+        throw new BusinessLogicError('Cannot disable inventory tracking for items with existing transactions', BUSINESS_ERROR_CODES.INVALID_TRANSACTION)
+      }
+    }
+    
+    // Validate inventory account if tracking is enabled
+    if (trackInventory && inventoryAccountId) {
+      const inventoryAccount = await prisma.ledger_accounts.findUnique({
+        where: { id: inventoryAccountId }
+      })
+      
+      if (!inventoryAccount || inventoryAccount.type !== 'stock') {
+        throw new ValidationError('Selected account must be of type Stock')
+      }
+    }
+    
+    const result = await prisma.$transaction(async (tx) => {
+      // Update the item
+      const item = await tx.products.update({
+        where: { id: req.params.id },
+        data: {
+          ...(name && { name }),
+          ...(sku !== undefined && { sku }),
+          ...(description !== undefined && { description }),
+          ...(type && { type }),
+          ...(costPrice !== undefined && { costPrice: parseFloat(costPrice) }),
+          ...(sellingPrice !== undefined && { sellingPrice: parseFloat(sellingPrice) }),
+          ...(salesAccountId && { 
+            salesAccount: { connect: { id: salesAccountId } }
+          }),
+          ...(purchaseAccountId && { 
+            purchaseAccount: { connect: { id: purchaseAccountId } }
+          }),
+          ...(isActive !== undefined && { isActive }),
+          ...(trackInventory !== undefined && { trackInventory }),
+          ...(inventoryAccountId !== undefined && { 
+            inventory_account: inventoryAccountId ? { connect: { id: inventoryAccountId } } : { disconnect: true }
+          }),
+          ...(reorderPoint !== undefined && { reorderPoint: parseFloat(reorderPoint) || 0 }),
+          updatedAt: new Date()
+        },
+        include: {
+          ledger_accounts_products_salesAccountIdToledger_accounts: true,
+          ledger_accounts_products_purchaseAccountIdToledger_accounts: true,
+          inventory_account: true
+        }
+      })
+
+      // Handle opening balance updates if inventory tracking is enabled
+      if (trackInventory && openingBalances.length > 0) {
+        // Get Opening Balance Equity account
+        const openingBalanceAccount = await tx.ledger_accounts.findFirst({
+          where: {
+            organizationId,
+            OR: [
+              { name: { contains: 'Opening Balance' } },
+              { code: '3900' },
+              { type: 'equity' }
+            ]
+          }
+        })
+        
+        if (!openingBalanceAccount) {
+          throw new Error('Opening Balance Equity account not found. Please create an Opening Balance Equity account first.')
+        }
+        
+        for (const opening of openingBalances) {
+          if (opening.openingStock > 0 && opening.openingStockValue > 0) {
+            const quantity = parseFloat(opening.openingStock)
+            const unitCost = parseFloat(opening.openingStockValue) // This is per unit cost from UI
+            const totalValue = quantity * unitCost
+            
+            // Check if opening balance already exists for this warehouse
+            const existingBalance = await tx.inventory_opening_balances.findFirst({
+              where: {
+                itemId: item.id,
+                warehouseId: opening.warehouseId
+              },
+              include: { journals: true }
+            })
+            
+            if (existingBalance) {
+              // Calculate the difference for journal adjustment
+              const oldValue = parseFloat(existingBalance.totalValue)
+              const valueDifference = totalValue - oldValue
+              
+              if (valueDifference !== 0) {
+                // Create adjustment journal entry
+                const adjustmentJournal = await tx.journals.create({
+                  data: {
+                    id: `journal_adj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    organizationId,
+                    journalNumber: `OB-ADJ-${item.name}-${Date.now()}`,
+                    journalDate: new Date(),
+                    reference: `Opening Balance Adjustment - ${item.name}`,
+                    notes: `Opening balance adjustment for ${item.name} in warehouse ${opening.warehouseId}`,
+                    totalDebit: Math.abs(valueDifference),
+                    totalCredit: Math.abs(valueDifference),
+                    status: 'active',
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    journal_entries: {
+                      create: [
+                        {
+                          id: `entry_adj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_1`,
+                          accountId: inventoryAccountId,
+                          description: `Opening balance adjustment - ${item.name}`,
+                          debitAmount: valueDifference > 0 ? valueDifference : 0,
+                          creditAmount: valueDifference < 0 ? Math.abs(valueDifference) : 0,
+                          createdAt: new Date(),
+                          updatedAt: new Date()
+                        },
+                        {
+                          id: `entry_adj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_2`,
+                          accountId: openingBalanceAccount.id,
+                          description: `Opening balance equity adjustment - ${item.name}`,
+                          debitAmount: valueDifference < 0 ? Math.abs(valueDifference) : 0,
+                          creditAmount: valueDifference > 0 ? valueDifference : 0,
+                          createdAt: new Date(),
+                          updatedAt: new Date()
+                        }
+                      ]
+                    }
+                  }
+                })
+              }
+              
+              // Update existing opening balance
+              await tx.inventory_opening_balances.update({
+                where: { id: existingBalance.id },
+                data: {
+                  quantity,
+                  unitCost,
+                  totalValue,
+                  updatedAt: new Date()
+                }
+              })
+              
+              // Update corresponding inventory layer
+              await tx.inventory_layers.updateMany({
+                where: {
+                  itemId: item.id,
+                  warehouseId: opening.warehouseId,
+                  sourceType: 'opening_balance'
+                },
+                data: {
+                  quantityRemaining: quantity,
+                  unitCost,
+                  updatedAt: new Date()
+                }
+              })
+            } else {
+              // Create journal entry for new opening balance (Double-Entry)
+              const journal = await tx.journals.create({
+                data: {
+                  id: `journal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  organizationId,
+                  journalNumber: `OB-${item.name}-${Date.now()}`,
+                  journalDate: new Date(),
+                  reference: `Opening Balance - ${item.name}`,
+                  notes: `Opening inventory balance for ${item.name} in warehouse ${opening.warehouseId}`,
+                  totalDebit: totalValue,
+                  totalCredit: totalValue,
+                  status: 'active',
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                  journal_entries: {
+                    create: [
+                      {
+                        id: `entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_1`,
+                        accountId: inventoryAccountId,
+                        description: `Opening inventory - ${item.name}`,
+                        debitAmount: totalValue,
+                        creditAmount: 0,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                      },
+                      {
+                        id: `entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_2`,
+                        accountId: openingBalanceAccount.id,
+                        description: `Opening balance equity - ${item.name}`,
+                        debitAmount: 0,
+                        creditAmount: totalValue,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
+                      }
+                    ]
+                  }
+                }
+              })
+              
+              // Create new opening balance
+              await tx.inventory_opening_balances.create({
+                data: {
+                  id: `opening_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  itemId: item.id,
+                  warehouseId: opening.warehouseId,
+                  quantity,
+                  unitCost,
+                  totalValue,
+                  asOfDate: new Date(),
+                  journalId: journal.id, // Link to journal entry
+                  createdAt: new Date(),
+                  updatedAt: new Date()
+                }
+              })
+              
+              console.log(`   📊 Successfully created all records for warehouse ${opening.warehouseId}`)
+              
+            } catch (error) {
+              console.error(`   ❌ Error creating opening balance for warehouse ${opening.warehouseId}:`, error)
+              throw error
+            }
+          }
+        }
+      } else {
+        console.log('🔧 Skipping opening balance creation (condition not met)')
+      }
+      
+      return item
+    }, {
+      timeout: 15000 // 15 seconds timeout for inventory operations
+    })
+    
+    // Calculate stock on hand for tracked items
+    let itemWithStock = { ...result }
+    if (result.trackInventory) {
+      console.log(`🔢 Calculating stock on hand for item ${result.id}`)
+      const inventoryLevels = await inventoryService.getInventoryLevels(result.id, organizationId)
+      console.log(`   - Found ${inventoryLevels.length} inventory levels`)
+      const stockOnHand = inventoryLevels.reduce((total, level) => 
+        total + parseFloat(level.totalQuantity || 0), 0)
+      console.log(`   - Total stock on hand: ${stockOnHand}`)
+      itemWithStock = { ...result, inventoryLevels, stockOnHand }
+    } else {
+      itemWithStock = { ...result, stockOnHand: result.type === 'goods' ? 0 : undefined }
+    }
+    
+    res.status(201).json({
+      success: true,
+      data: itemWithStock
+    })
+  }))
+
+// Delete item
+app.delete('/api/items/:id', async (req, res) => {
+  try {
+    await prisma.products.delete({
+      where: { id: req.params.id }
+    })
+    
+    res.json({
+      success: true,
+      message: 'Item deleted successfully'
+    })
+  } catch (error) {
+    console.error('Delete item error:', error)
+    if (error.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        error: 'Item not found'
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
+  }
+})
+
+// =============================================
+// CUSTOMERS CRUD
+// =============================================
+
+// List all customers
+app.get('/api/customers', customersCacheMiddleware, async (req, res) => {
+  try {
+    const customers = await prisma.customers.findMany({
+      orderBy: { name: 'asc' }
+    })
+    
+    res.json({
+      success: true,
+      data: customers
+    })
+  } catch (error) {
+    console.error('Get customers error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Get single customer
+app.get('/api/customers/:id', async (req, res) => {
+  try {
+    const customer = await prisma.customers.findUnique({
+      where: { id: req.params.id }
+    })
+    
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        error: 'Customer not found'
+      })
+    }
+    
+    res.json({
+      success: true,
+      data: customer
+    })
+  } catch (error) {
+    console.error('Get customer error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Create customer
+app.post('/api/customers', validateToken, invalidateCustomersCache, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const { name, email, phone, customerType } = req.body
+    
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name is required'
+      })
+    }
+    
+    const customer = await prisma.customers.create({
+      data: {
+        id: `cust_${Date.now()}`,
+        name,
+        email,
+        phone,
+        customerType: customerType || 'business',
+        organizationId: organizationId || 'cmefb2j540003s465quncwpko',
+        currency: 'MMK',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    })
+    
+    res.status(201).json({
+      success: true,
+      data: customer
+    })
+  } catch (error) {
+    console.error('Create customer error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Update customer
+app.put('/api/customers/:id', async (req, res) => {
+  try {
+    const { name, email, phone, customerType, isActive } = req.body
+    
+    const customer = await prisma.customers.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name }),
+        ...(email !== undefined && { email }),
+        ...(phone !== undefined && { phone }),
+        ...(customerType && { customerType }),
+        ...(isActive !== undefined && { isActive }),
+        updatedAt: new Date()
+      }
+    })
+    
+    res.json({
+      success: true,
+      data: customer
+    })
+  } catch (error) {
+    console.error('Update customer error:', error)
+    if (error.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        error: 'Customer not found'
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
+  }
+})
+
+// Delete customer
+app.delete('/api/customers/:id', async (req, res) => {
+  try {
+    await prisma.customers.delete({
+      where: { id: req.params.id }
+    })
+    
+    res.json({
+      success: true,
+      message: 'Customer deleted successfully'
+    })
+  } catch (error) {
+    console.error('Delete customer error:', error)
+    if (error.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        error: 'Customer not found'
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
+  }
+})
+
+// =============================================
+// BANK ACCOUNTS CRUD
+// =============================================
+
+// List all bank accounts
+app.get('/api/bank-accounts', bankAccountsCacheMiddleware, async (req, res) => {
+  try {
+    const bankAccounts = await prisma.bank_accounts.findMany({
+      include: {
+        ledger_accounts: true
+      },
+      orderBy: { bankName: 'asc' }
+    })
+    
+    res.json({
+      success: true,
+      data: bankAccounts
+    })
+  } catch (error) {
+    console.error('Get bank accounts error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Get single bank account
+app.get('/api/bank-accounts/:id', async (req, res) => {
+  try {
+    const bankAccount = await prisma.bank_accounts.findUnique({
+      where: { id: req.params.id },
+      include: {
+        ledger_accounts: true
+      }
+    })
+    
+    if (!bankAccount) {
+      return res.status(404).json({
+        success: false,
+        error: 'Bank account not found'
+      })
+    }
+    
+    res.json({
+      success: true,
+      data: bankAccount
+    })
+  } catch (error) {
+    console.error('Get bank account error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Create bank account
+app.post('/api/bank-accounts', validateToken, invalidateBankAccountsCache, invalidateAccountsCache, async (req, res) => {
+  try {
+    const { bankName, accountName, accountNumber, accountType, routingNumber, branch, swiftCode, iban, currentBalance, description, isPrimary } = req.body
+    const organizationId = req.auth?.organizationId
+    
+    if (!bankName || !accountName || !accountNumber) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bank name, account name, and account number are required'
+      })
+    }
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    // Use transaction to ensure both bank account and Chart of Accounts entry are created atomically
+    const result = await prisma.$transaction(async (tx) => {
+      // Generate unique account code for Chart of Accounts
+      const existingAccounts = await tx.ledger_accounts.findMany({
+        where: { organizationId },
+        orderBy: { code: 'desc' }
+      })
+      
+      // Find next available bank account code (starting from 1000)
+      let nextCode = 1000
+      const bankCodes = existingAccounts
+        .filter(acc => acc.type === 'bank' && /^\d{4}$/.test(acc.code))
+        .map(acc => parseInt(acc.code))
+      
+      if (bankCodes.length > 0) {
+        nextCode = Math.max(...bankCodes) + 1
+      }
+
+      // Create Chart of Accounts entry first
+      const ledgerAccount = await tx.ledger_accounts.create({
+        data: {
+          id: `acc_${Date.now()}_${nextCode}`,
+          organizationId,
+          code: nextCode.toString().padStart(4, '0'),
+          name: `${bankName} - ${accountName}`,
+          type: 'bank',
+          description: description || `Bank account: ${accountName} at ${bankName}`,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
+
+      // Create bank account with link to Chart of Accounts
+      const bankAccount = await tx.bank_accounts.create({
+        data: {
+          id: `bank_${Date.now()}`,
+          bankName,
+          accountName,
+          accountNumber,
+          routingNumber: routingNumber || '',
+          accountType: accountType || 'checking',
+          branch: branch || '',
+          swiftCode: swiftCode || '',
+          iban: iban || '',
+          ledgerAccountId: ledgerAccount.id,
+          organizationId,
+          currency: 'MMK',
+          currentBalance: parseFloat(currentBalance) || 0.00,
+          isActive: true,
+          isPrimary: isPrimary || false,
+          description: description || '',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
+
+      // If this is marked as primary, unmark other accounts
+      if (isPrimary) {
+        await tx.bank_accounts.updateMany({
+          where: { 
+            organizationId,
+            id: { not: bankAccount.id }
+          },
+          data: { isPrimary: false }
+        })
+      }
+
+      return { bankAccount, ledgerAccount }
+    })
+
+    // Return the created bank account with Chart of Accounts link
+    const bankAccountWithLedger = await prisma.bank_accounts.findUnique({
+      where: { id: result.bankAccount.id },
+      include: {
+        ledger_accounts: true
+      }
+    })
+    
+    res.status(201).json({
+      success: true,
+      data: bankAccountWithLedger,
+      message: 'Bank account created and automatically added to Chart of Accounts'
+    })
+  } catch (error) {
+    console.error('Create bank account error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Update bank account
+app.put('/api/bank-accounts/:id', validateToken, invalidateBankAccountsCache, invalidateAccountsCache, async (req, res) => {
+  try {
+    const { bankName, accountName, accountNumber, accountType, ledgerAccountId, currentBalance, isActive } = req.body
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Get current bank account to check if name changed
+      const currentBankAccount = await tx.bank_accounts.findFirst({
+        where: { 
+          id: req.params.id,
+          organizationId // Ensure tenant isolation
+        },
+        include: { ledger_accounts: true }
+      })
+
+      if (!currentBankAccount) {
+        throw new Error('Bank account not found')
+      }
+
+      // Update bank account
+      const bankAccount = await tx.bank_accounts.update({
+        where: { id: req.params.id },
+        data: {
+          ...(bankName && { bankName }),
+          ...(accountName && { accountName }),
+          ...(accountNumber && { accountNumber }),
+          ...(accountType && { accountType }),
+          ...(ledgerAccountId && { ledgerAccountId }),
+          ...(currentBalance !== undefined && { currentBalance: parseFloat(currentBalance) }),
+          ...(isActive !== undefined && { isActive }),
+          updatedAt: new Date()
+        }
+      })
+
+      // If bank name or account name changed, update the linked Chart of Accounts entry
+      if ((bankName && bankName !== currentBankAccount.bankName) || 
+          (accountName && accountName !== currentBankAccount.accountName)) {
+        
+        const newBankName = bankName || currentBankAccount.bankName
+        const newAccountName = accountName || currentBankAccount.accountName
+        
+        if (currentBankAccount.ledgerAccountId) {
+          await tx.ledger_accounts.update({
+            where: { id: currentBankAccount.ledgerAccountId },
+            data: {
+              name: `${newBankName} - ${newAccountName}`,
+              updatedAt: new Date()
+            }
+          })
+        }
+      }
+
+      return bankAccount
+    })
+    
+    // Return updated bank account with linked ledger account
+    const bankAccountWithLedger = await prisma.bank_accounts.findUnique({
+      where: { id: result.id },
+      include: { ledger_accounts: true }
+    })
+    
+    res.json({
+      success: true,
+      data: bankAccountWithLedger,
+      message: 'Bank account updated successfully'
+    })
+  } catch (error) {
+    console.error('Update bank account error:', error)
+    if (error.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        error: 'Bank account not found'
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
+  }
+})
+
+// Delete bank account
+app.delete('/api/bank-accounts/:id', validateToken, invalidateBankAccountsCache, invalidateAccountsCache, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Get bank account with linked ledger account
+      const bankAccount = await tx.bank_accounts.findFirst({
+        where: { 
+          id: req.params.id,
+          organizationId // Ensure tenant isolation
+        },
+        include: { ledger_accounts: true }
+      })
+
+      if (!bankAccount) {
+        throw new Error('Bank account not found')
+      }
+
+      // Check if there are any transactions linked to this bank account
+      const transactionCount = await tx.bank_transactions.count({
+        where: { bankAccountId: req.params.id }
+      })
+
+      if (transactionCount > 0) {
+        throw new Error('Cannot delete bank account with existing transactions. Please archive it instead.')
+      }
+
+      // Delete the bank account first (due to foreign key constraint)
+      await tx.bank_accounts.delete({
+        where: { id: req.params.id }
+      })
+
+      // If there's a linked Chart of Accounts entry, check if it's safe to delete
+      if (bankAccount.ledgerAccountId) {
+        // Check if the ledger account has any journal entries
+        const journalEntryCount = await tx.journal_entries.count({
+          where: { accountId: bankAccount.ledgerAccountId }
+        })
+
+        if (journalEntryCount === 0) {
+          // Safe to delete the Chart of Accounts entry
+          await tx.ledger_accounts.delete({
+            where: { id: bankAccount.ledgerAccountId }
+          })
+        } else {
+          // Mark as inactive instead of deleting
+          await tx.ledger_accounts.update({
+            where: { id: bankAccount.ledgerAccountId },
+            data: { 
+              isActive: false,
+              updatedAt: new Date()
+            }
+          })
+        }
+      }
+
+      return bankAccount
+    })
+    
+    res.json({
+      success: true,
+      message: 'Bank account deleted successfully',
+      data: { 
+        deletedBankAccount: result.id,
+        linkedAccountAction: result.ledgerAccountId ? 'deleted_or_archived' : 'none'
+      }
+    })
+  } catch (error) {
+    console.error('Delete bank account error:', error)
+    if (error.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        error: 'Bank account not found'
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
+  }
+})
+
+// =============================================
+// BANK TRANSACTIONS
+// =============================================
+
+// Get bank transactions for a specific bank account
+app.get('/api/bank-accounts/:id/transactions', validateToken, async (req, res) => {
+  try {
+    const { page = 1, limit = 50, startDate, endDate, type } = req.query
+    const offset = (parseInt(page) - 1) * parseInt(limit)
+    
+    const where = {
+      bankAccountId: req.params.id,
+      organizationId: req.auth?.organizationId,
+      ...(startDate && endDate && {
+        transactionDate: {
+          gte: new Date(startDate),
+          lte: new Date(endDate)
+        }
+      }),
+      ...(type && { transactionType: type })
+    }
+
+    const transactions = await prisma.bank_transactions.findMany({
+      where,
+      include: {
+        invoices: {
+          select: {
+            invoiceNumber: true,
+            customers: {
+              select: { name: true }
+            }
+          }
+        },
+        journals: {
+          select: {
+            journalNumber: true
+          }
+        }
+      },
+      orderBy: { transactionDate: 'desc' },
+      skip: offset,
+      take: parseInt(limit)
+    })
+
+    const totalCount = await prisma.bank_transactions.count({ where })
+
+    res.json({
+      success: true,
+      data: transactions,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalCount,
+        pages: Math.ceil(totalCount / parseInt(limit))
+      }
+    })
+  } catch (error) {
+    console.error('Get bank transactions error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Get bank account summary with recent transactions
+app.get('/api/bank-accounts/:id/summary', validateToken, async (req, res) => {
+  try {
+    const bankAccount = await prisma.bank_accounts.findUnique({
+      where: { id: req.params.id },
+      include: {
+        ledger_accounts: true,
+        bank_transactions: {
+          orderBy: { transactionDate: 'desc' },
+          take: 10,
+          include: {
+            invoices: {
+              select: {
+                invoiceNumber: true,
+                customers: { select: { name: true } }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!bankAccount) {
+      return res.status(404).json({
+        success: false,
+        error: 'Bank account not found'
+      })
+    }
+
+    // Calculate summary statistics
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    
+    const recentTransactions = await prisma.bank_transactions.findMany({
+      where: {
+        bankAccountId: req.params.id,
+        transactionDate: { gte: thirtyDaysAgo }
+      }
+    })
+
+    const totalDeposits = recentTransactions
+      .filter(t => t.transactionType === 'credit')
+      .reduce((sum, t) => sum + parseFloat(t.amount), 0)
+
+    const totalWithdrawals = recentTransactions
+      .filter(t => t.transactionType === 'debit')
+      .reduce((sum, t) => sum + parseFloat(t.amount), 0)
+
+    res.json({
+      success: true,
+      data: {
+        bankAccount,
+        summary: {
+          currentBalance: parseFloat(bankAccount.currentBalance),
+          totalDeposits30Days: totalDeposits,
+          totalWithdrawals30Days: totalWithdrawals,
+          transactionCount30Days: recentTransactions.length
+        }
+      }
+    })
+  } catch (error) {
+    console.error('Get bank account summary error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// =============================================
+// VENDORS CRUD
+// =============================================
+
+// List all vendors
+app.get('/api/vendors', vendorsCacheMiddleware, async (req, res) => {
+  try {
+    const vendors = await prisma.vendors.findMany({
+      orderBy: { name: 'asc' }
+    })
+    
+    res.json({
+      success: true,
+      data: vendors
+    })
+  } catch (error) {
+    console.error('Get vendors error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Get single vendor
+app.get('/api/vendors/:id', async (req, res) => {
+  try {
+    const vendor = await prisma.vendors.findUnique({
+      where: { id: req.params.id }
+    })
+    
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        error: 'Vendor not found'
+      })
+    }
+    
+    res.json({
+      success: true,
+      data: vendor
+    })
+  } catch (error) {
+    console.error('Get vendor error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Create vendor
+app.post('/api/vendors', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const { name, email, phone, vendorType, industry, paymentTerms, taxId, address, notes } = req.body
+    
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name is required'
+      })
+    }
+    
+    const vendor = await prisma.vendors.create({
+      data: {
+        id: `vendor_${Date.now()}`,
+        name,
+        email,
+        phone,
+        vendorType: vendorType || 'supplier',
+        industry,
+        paymentTerms: paymentTerms || 'net30',
+        taxId,
+        address,
+        notes,
+        organizationId: organizationId || 'cmefb2j540003s465quncwpko',
+        currency: 'MMK',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    })
+    
+    res.status(201).json({
+      success: true,
+      data: vendor
+    })
+  } catch (error) {
+    console.error('Create vendor error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Update vendor
+app.put('/api/vendors/:id', async (req, res) => {
+  try {
+    const { name, email, phone, vendorType, industry, paymentTerms, taxId, address, notes, isActive } = req.body
+    
+    const vendor = await prisma.vendors.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name }),
+        ...(email !== undefined && { email }),
+        ...(phone !== undefined && { phone }),
+        ...(vendorType && { vendorType }),
+        ...(industry !== undefined && { industry }),
+        ...(paymentTerms && { paymentTerms }),
+        ...(taxId !== undefined && { taxId }),
+        ...(address !== undefined && { address }),
+        ...(notes !== undefined && { notes }),
+        ...(isActive !== undefined && { isActive }),
+        updatedAt: new Date()
+      }
+    })
+    
+    res.json({
+      success: true,
+      data: vendor
+    })
+  } catch (error) {
+    console.error('Update vendor error:', error)
+    if (error.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        error: 'Vendor not found'
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
+  }
+})
+
+// Delete vendor
+app.delete('/api/vendors/:id', async (req, res) => {
+  try {
+    await prisma.vendors.delete({
+      where: { id: req.params.id }
+    })
+    
+    res.json({
+      success: true,
+      message: 'Vendor deleted successfully'
+    })
+  } catch (error) {
+    console.error('Delete vendor error:', error)
+    if (error.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        error: 'Vendor not found'
+      })
+    } else {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
+  }
+})
+
+// =============================================
+// TAXES CRUD
+// =============================================
+
+// List all taxes
+app.get('/api/taxes', async (req, res) => {
+  try {
+    const taxes = await prisma.taxes.findMany({
+      orderBy: { name: 'asc' }
+    })
+    
+    res.json({
+      success: true,
+      data: taxes
+    })
+  } catch (error) {
+    console.error('Failed to fetch taxes:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch taxes'
+    })
+  }
+})
+
+// Get single tax by ID
+app.get('/api/taxes/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const tax = await prisma.taxes.findUnique({
+      where: { id }
+    })
+    
+    if (!tax) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tax not found'
+      })
+    }
+    
+    res.json({
+      success: true,
+      data: tax
+    })
+  } catch (error) {
+    console.error('Failed to fetch tax:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch tax'
+    })
+  }
+})
+
+// Create new tax
+app.post('/api/taxes', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const { name, rate, type, isCompound, description } = req.body
+    
+    if (!name || rate === undefined || rate === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tax name and rate are required'
+      })
+    }
+    
+    // Validate rate is a positive number
+    if (isNaN(rate) || parseFloat(rate) < 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tax rate must be a positive number'
+      })
+    }
+    
+    const tax = await prisma.taxes.create({
+      data: {
+        id: `tax_${Date.now()}`,
+        name,
+        rate: parseFloat(rate),
+        type: type || 'standard',
+        isCompound: isCompound || false,
+        description: description || '',
+        organizationId: organizationId || null,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    })
+    
+    res.status(201).json({
+      success: true,
+      data: tax
+    })
+  } catch (error) {
+    console.error('Failed to create tax:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create tax'
+    })
+  }
+})
+
+// Update tax
+app.put('/api/taxes/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, rate, type, isCompound, description, isActive } = req.body
+    
+    if (!name || rate === undefined || rate === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tax name and rate are required'
+      })
+    }
+    
+    // Validate rate is a positive number
+    if (isNaN(rate) || parseFloat(rate) < 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tax rate must be a positive number'
+      })
+    }
+    
+    const tax = await prisma.taxes.update({
+      where: { id },
+      data: {
+        name,
+        rate: parseFloat(rate),
+        type: type || 'standard',
+        isCompound: isCompound || false,
+        description: description || '',
+        isActive: isActive !== undefined ? isActive : true,
+        updatedAt: new Date()
+      }
+    })
+    
+    res.json({
+      success: true,
+      data: tax
+    })
+  } catch (error) {
+    console.error('Failed to update tax:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update tax'
+    })
+  }
+})
+
+// Delete tax
+app.delete('/api/taxes/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    
+    const tax = await prisma.taxes.delete({
+      where: { id }
+    })
+    
+    res.json({
+      success: true,
+      data: tax,
+      message: 'Tax deleted successfully'
+    })
+  } catch (error) {
+    console.error('Failed to delete tax:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete tax'
+    })
+  }
+})
+
+// SALESPERSONS CRUD
+// =============================================
+
+// List all salespersons
+app.get('/api/salespersons', validateToken, async (req, res) => {
+  try {
+    const { status, organizationId } = req.query
+    
+    const where = {}
+    if (status) where.status = status
+    if (organizationId) where.organizationId = organizationId
+    
+    const salespersons = await prisma.salespersons.findMany({
+      where,
+      orderBy: { name: 'asc' }
+    })
+    
+    res.json({
+      success: true,
+      data: salespersons
+    })
+  } catch (error) {
+    console.error('Failed to fetch salespersons:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch salespersons'
+    })
+  }
+})
+
+// Get single salesperson by ID
+app.get('/api/salespersons/:id', validateToken, async (req, res) => {
+  try {
+    const { id } = req.params
+    const salesperson = await prisma.salespersons.findUnique({
+      where: { id }
+    })
+    
+    if (!salesperson) {
+      return res.status(404).json({
+        success: false,
+        error: 'Salesperson not found'
+      })
+    }
+    
+    res.json({
+      success: true,
+      data: salesperson
+    })
+  } catch (error) {
+    console.error('Failed to fetch salesperson:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch salesperson'
+    })
+  }
+})
+
+// Create new salesperson
+app.post('/api/salespersons', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const { name, email, status } = req.body
+    
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Salesperson name is required'
+      })
+    }
+    
+    // Check if email is unique if provided
+    if (email) {
+      const existingSalesperson = await prisma.salespersons.findUnique({
+        where: { email }
+      })
+      
+      if (existingSalesperson) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email already exists'
+        })
+      }
+    }
+    
+    const salesperson = await prisma.salespersons.create({
+      data: {
+        id: `sp_${Date.now()}`,
+        name,
+        email: email || null,
+        status: status || 'active',
+        organizationId: organizationId || null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    })
+    
+    res.status(201).json({
+      success: true,
+      data: salesperson
+    })
+  } catch (error) {
+    console.error('Failed to create salesperson:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create salesperson'
+    })
+  }
+})
+
+// Update salesperson
+app.put('/api/salespersons/:id', validateToken, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, email, status } = req.body
+    
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Salesperson name is required'
+      })
+    }
+    
+    // Check if email is unique if provided (excluding current salesperson)
+    if (email) {
+      const existingSalesperson = await prisma.salespersons.findFirst({
+        where: {
+          email,
+          id: { not: id }
+        }
+      })
+      
+      if (existingSalesperson) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email already exists'
+        })
+      }
+    }
+    
+    const salesperson = await prisma.salespersons.update({
+      where: { id },
+      data: {
+        name,
+        email: email || null,
+        status: status || 'active',
+        updatedAt: new Date()
+      }
+    })
+    
+    res.json({
+      success: true,
+      data: salesperson
+    })
+  } catch (error) {
+    console.error('Failed to update salesperson:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update salesperson'
+    })
+  }
+})
+
+// Delete salesperson
+app.delete('/api/salespersons/:id', validateToken, async (req, res) => {
+  try {
+    const { id } = req.params
+    
+    // Check if salesperson is used in any invoices
+    const invoicesWithSalesperson = await prisma.invoices.findFirst({
+      where: { salespersonId: id }
+    })
+    
+    if (invoicesWithSalesperson) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot delete salesperson who has associated invoices. Mark as inactive instead.'
+      })
+    }
+    
+    const salesperson = await prisma.salespersons.delete({
+      where: { id }
+    })
+    
+    res.json({
+      success: true,
+      data: salesperson,
+      message: 'Salesperson deleted successfully'
+    })
+  } catch (error) {
+    console.error('Failed to delete salesperson:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete salesperson'
+    })
+  }
+})
+
+// Toggle salesperson status (active/inactive)
+app.patch('/api/salespersons/:id/status', validateToken, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { status } = req.body
+    
+    if (!status || !['active', 'inactive'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Status must be either "active" or "inactive"'
+      })
+    }
+    
+    const salesperson = await prisma.salespersons.update({
+      where: { id },
+      data: {
+        status,
+        updatedAt: new Date()
+      }
+    })
+    
+    res.json({
+      success: true,
+      data: salesperson,
+      message: `Salesperson status updated to ${status}`
+    })
+  } catch (error) {
+    console.error('Failed to update salesperson status:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update salesperson status'
+    })
+  }
+})
+
+// =============================================
+// BRANCH MANAGEMENT
+// =============================================
+
+// List all branches
+app.get('/api/branches', async (req, res) => {
+  try {
+    const { status, organizationId } = req.query
+    
+    const where = {}
+    if (organizationId) where.organizationId = organizationId
+    if (status) where.isActive = status === 'active'
+    
+    const branches = await prisma.branches.findMany({
+      where,
+      orderBy: [
+        { isDefault: 'desc' },
+        { name: 'asc' }
+      ]
+    })
+    
+    res.json({
+      success: true,
+      data: branches
+    })
+  } catch (error) {
+    console.error('Error fetching branches:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch branches'
+    })
+  }
+})
+
+// Get single branch by ID
+app.get('/api/branches/:id', async (req, res) => {
+  try {
+    const branch = await prisma.branches.findUnique({
+      where: { id: req.params.id }
+    })
+    
+    if (!branch) {
+      return res.status(404).json({
+        success: false,
+        error: 'Branch not found'
+      })
+    }
+    
+    res.json({
+      success: true,
+      data: branch
+    })
+  } catch (error) {
+    console.error('Error fetching branch:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch branch'
+    })
+  }
+})
+
+// Create new branch
+app.post('/api/branches', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const {
+      name,
+      addressLine1,
+      addressLine2,
+      city,
+      state,
+      postalCode,
+      country,
+      phone,
+      fax,
+      website,
+      defaultTransactionSeries,
+      isDefault
+    } = req.body
+    
+    // If this is the first branch or marked as default, unset other defaults
+    if (isDefault) {
+      await prisma.branches.updateMany({
+        where: { organizationId },
+        data: { isDefault: false }
+      })
+    }
+    
+    const branch = await prisma.branches.create({
+      data: {
+        id: `branch_${Date.now()}`,
+        name,
+        addressLine1,
+        addressLine2,
+        city,
+        state,
+        postalCode,
+        country: country || 'Myanmar',
+        phone,
+        fax,
+        website,
+        defaultTransactionSeries,
+        isDefault: isDefault || false,
+        organizationId,
+        updatedAt: new Date()
+      }
+    })
+    
+    res.status(201).json({
+      success: true,
+      data: branch
+    })
+  } catch (error) {
+    console.error('Error creating branch:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create branch'
+    })
+  }
+})
+
+// Update branch
+app.put('/api/branches/:id', validateToken, async (req, res) => {
+  try {
+    const {
+      name,
+      addressLine1,
+      addressLine2,
+      city,
+      state,
+      postalCode,
+      country,
+      phone,
+      fax,
+      website,
+      defaultTransactionSeries,
+      isDefault
+    } = req.body
+    
+    // Check if branch exists
+    const existingBranch = await prisma.branches.findUnique({
+      where: { id: req.params.id }
+    })
+    
+    if (!existingBranch) {
+      return res.status(404).json({
+        success: false,
+        error: 'Branch not found'
+      })
+    }
+    
+    // If setting as default, unset other defaults in the same organization
+    if (isDefault) {
+      await prisma.branches.updateMany({
+        where: { 
+          organizationId: existingBranch.organizationId,
+          id: { not: req.params.id }
+        },
+        data: { isDefault: false }
+      })
+    }
+    
+    const branch = await prisma.branches.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name }),
+        ...(addressLine1 !== undefined && { addressLine1 }),
+        ...(addressLine2 !== undefined && { addressLine2 }),
+        ...(city !== undefined && { city }),
+        ...(state !== undefined && { state }),
+        ...(postalCode !== undefined && { postalCode }),
+        ...(country !== undefined && { country }),
+        ...(phone !== undefined && { phone }),
+        ...(fax !== undefined && { fax }),
+        ...(website !== undefined && { website }),
+        ...(defaultTransactionSeries !== undefined && { defaultTransactionSeries }),
+        ...(isDefault !== undefined && { isDefault }),
+        updatedAt: new Date()
+      }
+    })
+    
+    res.json({
+      success: true,
+      data: branch
+    })
+  } catch (error) {
+    console.error('Error updating branch:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update branch'
+    })
+  }
+})
+
+// Delete branch
+app.delete('/api/branches/:id', validateToken, async (req, res) => {
+  try {
+    const branch = await prisma.branches.findUnique({
+      where: { id: req.params.id }
+    })
+    
+    if (!branch) {
+      return res.status(404).json({
+        success: false,
+        error: 'Branch not found'
+      })
+    }
+    
+    // Check if branch is used in invoices
+    const invoiceCount = await prisma.invoices.count({
+      where: { branchId: req.params.id }
+    })
+    
+    if (invoiceCount > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot delete branch. It is used in ${invoiceCount} invoice(s).`
+      })
+    }
+    
+    await prisma.branches.delete({
+      where: { id: req.params.id }
+    })
+    
+    res.json({
+      success: true,
+      message: 'Branch deleted successfully'
+    })
+  } catch (error) {
+    console.error('Error deleting branch:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete branch'
+    })
+  }
+})
+
+// Toggle branch default status
+app.patch('/api/branches/:id/status', async (req, res) => {
+  try {
+    const { isDefault } = req.body
+    
+    const branch = await prisma.branches.findUnique({
+      where: { id: req.params.id }
+    })
+    
+    if (!branch) {
+      return res.status(404).json({
+        success: false,
+        error: 'Branch not found'
+      })
+    }
+    
+    // If setting as default, unset other defaults in the same organization
+    if (isDefault) {
+      await prisma.branches.updateMany({
+        where: { 
+          organizationId: branch.organizationId,
+          id: { not: req.params.id }
+        },
+        data: { isDefault: false }
+      })
+    }
+    
+    const updatedBranch = await prisma.branches.update({
+      where: { id: req.params.id },
+      data: {
+        isDefault,
+        updatedAt: new Date()
+      }
+    })
+    
+    res.json({
+      success: true,
+      data: updatedBranch
+    })
+  } catch (error) {
+    console.error('Error updating branch status:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update branch status'
+    })
+  }
+})
+
+// =============================================
+// WAREHOUSE MANAGEMENT
+// =============================================
+
+// List all warehouses
+app.get('/api/warehouses', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    const warehouses = await prisma.warehouses.findMany({
+      where: { organizationId },
+      orderBy: [
+        { isDefault: 'desc' },
+        { name: 'asc' }
+      ]
+    })
+    
+    res.json({
+      success: true,
+      data: warehouses
+    })
+  } catch (error) {
+    console.error('Error fetching warehouses:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch warehouses'
+    })
+  }
+})
+
+// Create warehouse (enhanced)
+app.post('/api/warehouses', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const warehouse = await warehouseService.createWarehouse(req.body, organizationId)
+    
+    res.status(201).json({
+      success: true,
+      data: warehouse,
+      message: 'Warehouse created successfully'
+    })
+  } catch (error) {
+    console.error('Create warehouse error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to create warehouse'
+    })
+  }
+})
+
+// Enhanced warehouse management endpoints
+
+// Get warehouse by ID
+app.get('/api/warehouses/:id', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const warehouse = await warehouseService.getWarehouseById(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      data: warehouse
+    })
+  } catch (error) {
+    console.error('Get warehouse error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch warehouse'
+    })
+  }
+})
+
+// Update warehouse
+app.put('/api/warehouses/:id', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const warehouse = await warehouseService.updateWarehouse(req.params.id, req.body, organizationId)
+    
+    res.json({
+      success: true,
+      data: warehouse
+    })
+  } catch (error) {
+    console.error('Update warehouse error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to update warehouse'
+    })
+  }
+})
+
+// Delete warehouse
+app.delete('/api/warehouses/:id', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    await warehouseService.deleteWarehouse(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      message: 'Warehouse deleted successfully'
+    })
+  } catch (error) {
+    console.error('Delete warehouse error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to delete warehouse'
+    })
+  }
+})
+
+// Set warehouse as primary/default
+app.patch('/api/warehouses/:id/primary', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const warehouse = await warehouseService.setPrimaryWarehouse(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      data: warehouse,
+      message: 'Primary warehouse updated successfully'
+    })
+  } catch (error) {
+    console.error('Set primary warehouse error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to set primary warehouse'
+    })
+  }
+})
+
+// Set warehouse as default (alias for primary)
+app.post('/api/warehouses/:id/set-default', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const warehouse = await warehouseService.setPrimaryWarehouse(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      data: warehouse,
+      message: 'Default warehouse updated successfully'
+    })
+  } catch (error) {
+    console.error('Set primary warehouse error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to set primary warehouse'
+    })
+  }
+})
+
+// Toggle warehouse status
+app.patch('/api/warehouses/:id/status', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const { isActive } = req.body
+    
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        error: 'isActive must be a boolean value'
+      })
+    }
+    
+    const warehouse = await warehouseService.toggleWarehouseStatus(req.params.id, isActive, organizationId)
+    
+    res.json({
+      success: true,
+      data: warehouse,
+      message: `Warehouse ${isActive ? 'activated' : 'deactivated'} successfully`
+    })
+  } catch (error) {
+    console.error('Toggle warehouse status error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to update warehouse status'
+    })
+  }
+})
+
+// Get warehouse permissions
+app.get('/api/warehouses/:id/permissions', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const permissions = await warehouseService.getWarehousePermissions(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      data: permissions
+    })
+  } catch (error) {
+    console.error('Get warehouse permissions error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch warehouse permissions'
+    })
+  }
+})
+
+// Grant warehouse permission
+app.post('/api/warehouses/:id/permissions', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const { userId, permission } = req.body
+    
+    if (!userId || !permission) {
+      return res.status(400).json({
+        success: false,
+        error: 'userId and permission are required'
+      })
+    }
+    
+    const warehousePermission = await warehouseService.grantWarehousePermission(
+      req.params.id, userId, permission, organizationId
+    )
+    
+    res.status(201).json({
+      success: true,
+      data: warehousePermission,
+      message: 'Permission granted successfully'
+    })
+  } catch (error) {
+    console.error('Grant warehouse permission error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to grant warehouse permission'
+    })
+  }
+})
+
+// Revoke warehouse permission
+app.delete('/api/warehouses/:id/permissions/:userId', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    await warehouseService.revokeWarehousePermission(req.params.id, req.params.userId, organizationId)
+    
+    res.json({
+      success: true,
+      message: 'Permission revoked successfully'
+    })
+  } catch (error) {
+    console.error('Revoke warehouse permission error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to revoke warehouse permission'
+    })
+  }
+})
+
+// Get warehouse inventory
+app.get('/api/warehouses/:id/inventory', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const inventory = await warehouseService.getWarehouseInventory(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      data: inventory
+    })
+  } catch (error) {
+    console.error('Get warehouse inventory error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch warehouse inventory'
+    })
+  }
+})
+
+// =============================================
+// INVENTORY TRANSFERS
+// =============================================
+
+// List inventory transfers
+app.get('/api/inventory-transfers', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const filters = {
+      status: req.query.status,
+      fromWarehouseId: req.query.fromWarehouseId,
+      toWarehouseId: req.query.toWarehouseId,
+      dateFrom: req.query.dateFrom,
+      dateTo: req.query.dateTo
+    }
+    
+    const transfers = await inventoryTransferService.getTransfers(organizationId, filters)
+    
+    res.json({
+      success: true,
+      data: transfers
+    })
+  } catch (error) {
+    console.error('Get transfers error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch transfers'
+    })
+  }
+})
+
+// Get transfer by ID
+app.get('/api/inventory-transfers/:id', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const transfer = await inventoryTransferService.getTransferById(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      data: transfer
+    })
+  } catch (error) {
+    console.error('Get transfer error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch transfer'
+    })
+  }
+})
+
+// Create inventory transfer
+app.post('/api/inventory-transfers', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const userId = req.auth?.id || 'system'
+    
+    const transfer = await inventoryTransferService.createTransfer(req.body, organizationId, userId)
+    
+    res.status(201).json({
+      success: true,
+      data: transfer,
+      message: 'Transfer created successfully'
+    })
+  } catch (error) {
+    console.error('Create transfer error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to create transfer'
+    })
+  }
+})
+
+// Update inventory transfer
+app.put('/api/inventory-transfers/:id', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const transfer = await inventoryTransferService.updateTransfer(req.params.id, req.body, organizationId)
+    
+    res.json({
+      success: true,
+      data: transfer,
+      message: 'Transfer updated successfully'
+    })
+  } catch (error) {
+    console.error('Update transfer error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to update transfer'
+    })
+  }
+})
+
+// Delete inventory transfer
+app.delete('/api/inventory-transfers/:id', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    await inventoryTransferService.deleteTransfer(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      message: 'Transfer deleted successfully'
+    })
+  } catch (error) {
+    console.error('Delete transfer error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to delete transfer'
+    })
+  }
+})
+
+// Confirm inventory transfer
+app.post('/api/inventory-transfers/:id/confirm', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const userId = req.auth?.id || 'system'
+    
+    const transfer = await inventoryTransferService.confirmTransfer(req.params.id, organizationId, userId)
+    
+    res.json({
+      success: true,
+      data: transfer,
+      message: 'Transfer confirmed successfully'
+    })
+  } catch (error) {
+    console.error('Confirm transfer error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to confirm transfer'
+    })
+  }
+})
+
+// Complete inventory transfer
+app.post('/api/inventory-transfers/:id/complete', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const transfer = await inventoryTransferService.completeTransfer(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      data: transfer,
+      message: 'Transfer completed successfully'
+    })
+  } catch (error) {
+    console.error('Complete transfer error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to complete transfer'
+    })
+  }
+})
+
+// Cancel inventory transfer
+app.post('/api/inventory-transfers/:id/cancel', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const transfer = await inventoryTransferService.cancelTransfer(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      data: transfer,
+      message: 'Transfer cancelled successfully'
+    })
+  } catch (error) {
+    console.error('Cancel transfer error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to cancel transfer'
+    })
+  }
+})
+
+// Get transfer statistics
+app.get('/api/inventory-transfers/stats', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const filters = {
+      dateFrom: req.query.dateFrom,
+      dateTo: req.query.dateTo
+    }
+    
+    const stats = await inventoryTransferService.getTransferStats(organizationId, filters)
+    
+    res.json({
+      success: true,
+      data: stats
+    })
+  } catch (error) {
+    console.error('Get transfer stats error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch transfer statistics'
+    })
+  }
+})
+
+// =============================================
+// BRANCH-WAREHOUSE INTEGRATION
+// =============================================
+
+// Get warehouses for a branch
+app.get('/api/branches/:id/warehouses', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const warehouses = await warehouseService.getWarehousesByBranch(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      data: warehouses
+    })
+  } catch (error) {
+    console.error('Get branch warehouses error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch branch warehouses'
+    })
+  }
+})
+
+// Get primary warehouse for a branch
+app.get('/api/branches/:id/primary-warehouse', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const warehouse = await warehouseService.getPrimaryWarehouse(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      data: warehouse
+    })
+  } catch (error) {
+    console.error('Get primary warehouse error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch primary warehouse'
+    })
+  }
+})
+
+// =============================================
+// USER PERMISSIONS AND RBAC
+// =============================================
+
+// Get current user's permissions
+app.get('/api/auth/permissions', validateToken, addUserPermissions(), asyncHandler(async (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        role: req.userRole,
+        permissions: req.userPermissions,
+        userId: req.auth.userId,
+        organizationId: req.auth.organizationId
+      }
+    })
+  }))
+
+// Get available roles (admin only)
+app.get('/api/auth/roles', validateToken, requireRole(ROLES.ADMIN.name), asyncHandler(async (req, res) => {
+    res.json({
+      success: true,
+      data: {
+        roles: Object.values(ROLES).map(role => ({
+          name: role.name,
+          level: role.level
+        })),
+        permissions: Object.keys(PERMISSIONS)
+      }
+    })
+  }))
+
+// =============================================
+// OPENING BALANCE MANAGEMENT
+// =============================================
+
+const OpeningBalanceService = require('./services/opening-balance-service')
+const openingBalanceService = new OpeningBalanceService(prisma)
+
+// Ensure Opening Balance Equity account exists
+app.post('/api/opening-balances/ensure-equity-account', validateToken, requirePermission('opening_balances:write'), async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const account = await openingBalanceService.ensureOpeningBalanceEquityAccount(organizationId)
+    
+    res.json({
+      success: true,
+      data: account,
+      message: 'Opening Balance Equity account ensured'
+    })
+  } catch (error) {
+    console.error('Ensure equity account error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Validate opening balance integrity
+app.get('/api/opening-balances/validate', validateToken, requirePermission('opening_balances:read'), async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const validation = await openingBalanceService.validateOpeningBalanceIntegrity(organizationId)
+    
+    res.json({
+      success: true,
+      data: validation
+    })
+  } catch (error) {
+    console.error('Validate opening balances error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Generate trial balance report
+app.get('/api/reports/trial-balance', validateToken, requirePermission('reports:financial'), async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const { asOfDate } = req.query
+    const reportDate = asOfDate ? new Date(asOfDate) : new Date()
+    
+    const trialBalance = await openingBalanceService.generateTrialBalance(organizationId, reportDate)
+    
+    res.json({
+      success: true,
+      data: trialBalance
+    })
+  } catch (error) {
+    console.error('Generate trial balance error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// =============================================
+// INVENTORY MANAGEMENT
+// =============================================
+
+// Get inventory levels for an item
+app.get('/api/items/:id/inventory', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const inventoryLevels = await inventoryService.getInventoryLevels(req.params.id, organizationId)
+    
+    res.json({
+      success: true,
+      data: inventoryLevels
+    })
+  } catch (error) {
+    console.error('Error fetching inventory levels:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch inventory levels'
+    })
+  }
+})
+
+// Get inventory movements for an item
+app.get('/api/items/:id/movements', validateToken, async (req, res) => {
+  try {
+    const { warehouseId, limit = 50 } = req.query
+    const movements = await inventoryService.getMovementHistory(
+      req.params.id, 
+      warehouseId, 
+      parseInt(limit)
+    )
+    
+    res.json({
+      success: true,
+      data: movements
+    })
+  } catch (error) {
+    console.error('Error fetching inventory movements:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch inventory movements'
+    })
+  }
+})
+
+// Create opening balance for an item
+app.post('/api/items/:id/opening-balance', validateToken, async (req, res) => {
+  try {
+    const { warehouseId, quantity, unitCost, asOfDate } = req.body
+    const organizationId = req.auth?.organizationId
+    
+    if (!warehouseId || !quantity || !unitCost) {
+      return res.status(400).json({
+        success: false,
+        error: 'Warehouse, quantity, and unit cost are required'
+      })
+    }
+    
+    const result = await inventoryService.createOpeningBalance(
+      req.params.id,
+      warehouseId,
+      parseFloat(quantity),
+      parseFloat(unitCost),
+      asOfDate ? new Date(asOfDate) : new Date(),
+      organizationId
+    )
+    
+    res.status(201).json({
+      success: true,
+      data: result,
+      message: 'Opening balance created successfully'
+    })
+  } catch (error) {
+    console.error('Error creating opening balance:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Get all opening balances (for Settings page)
+app.get('/api/opening-balances', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    const openingBalances = await prisma.inventory_opening_balances.findMany({
+      where: {
+        products: { organizationId }
+      },
+      include: {
+        products: {
+          select: { id: true, name: true, sku: true, unit: true }
+        },
+        warehouses: {
+          select: { id: true, name: true }
+        },
+        journals: {
+          select: { id: true, journalNumber: true, journalDate: true }
+        }
+      },
+      orderBy: [
+        { products: { name: 'asc' } },
+        { warehouses: { name: 'asc' } }
+      ]
+    })
+    
+    res.json({
+      success: true,
+      data: openingBalances
+    })
+  } catch (error) {
+    console.error('Error fetching opening balances:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch opening balances'
+    })
+  }
+})
+
+// =============================================
+// INVOICES CRUD
+// =============================================
+
+// List all invoices with filters and pagination
+app.get('/api/invoices', async (req, res) => {
+  try {
+    const { status, customerId, limit = 50, offset = 0 } = req.query
+    
+    const where = {}
+    if (status) where.status = status
+    if (customerId) where.customerId = customerId
+    
+    const invoices = await prisma.invoices.findMany({
+      where,
+      include: {
+        customers: {
+          select: { id: true, name: true, email: true }
+        },
+        invoice_items: {
+          include: {
+            products: { select: { id: true, name: true } },
+            ledger_accounts: { select: { id: true, code: true, name: true } }
+          }
+        },
+        invoice_payments: {
+          include: {
+            deposit_account: { select: { id: true, code: true, name: true } }
+          }
+        },
+        journals: {
+          select: { id: true, journalNumber: true, journalDate: true }
+        }
+      },
+      orderBy: { issueDate: 'desc' },
+      take: parseInt(limit),
+      skip: parseInt(offset)
+    })
+    
+    // Calculate overdue status
+    const invoicesWithStatus = invoices.map(invoice => ({
+      ...invoice,
+      status: invoice.balanceDue > 0 && new Date(invoice.dueDate) < new Date() ? 'overdue' : invoice.status
+    }))
+    
+    res.json({
+      success: true,
+      data: invoicesWithStatus
+    })
+  } catch (error) {
+    console.error('Get invoices error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Get single invoice
+app.get('/api/invoices/:id', async (req, res) => {
+  try {
+    const invoice = await prisma.invoices.findUnique({
+      where: { id: req.params.id },
+      include: {
+        customers: true,
+        invoice_items: {
+          include: {
+            products: true,
+            ledger_accounts: true
+          }
+        },
+        invoice_payments: {
+          include: {
+            deposit_account: true,
+            payment_journal: true
+          }
+        },
+        journals: {
+          include: {
+            journal_entries: {
+              include: {
+                ledger_accounts: true
+              }
+            }
+          }
+        }
+      }
+    })
+    
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        error: 'Invoice not found'
+      })
+    }
+    
+    res.json({
+      success: true,
+      data: invoice
+    })
+  } catch (error) {
+    console.error('Get invoice error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Create invoice
+app.post('/api/invoices', 
+  validateToken,
+  idempotencyMiddleware('create_invoice'),
+  auditMiddleware('invoices'),
+  async (req, res) => {
+  try {
+    const {
+      customerId,
+      invoiceNumber,
+      orderNumber,
+      issueDate,
+      dueDate,
+      terms,
+      location,
+      warehouse,
+      salespersonId, // Accept salespersonId directly from frontend
+      salesperson, // Keep for backward compatibility
+      branchId, // Branch ID for the invoice
+      subject,
+      customerNotes,
+      termsConditions,
+      items = [],
+      discount = 0,
+      discountPercent = 0,
+      shippingCharges = 0,
+      adjustment = 0,
+      organizationId
+    } = req.body
+    
+    if (!customerId || !invoiceNumber || !issueDate || !dueDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'Customer, invoice number, issue date, and due date are required'
+      })
+    }
+    
+    // Calculate totals
+    let subtotal = 0
+    const processedItems = items.map(item => {
+      const amount = parseFloat(item.quantity || 0) * parseFloat(item.rate || 0)
+      const itemDiscount = parseFloat(item.discount || 0)
+      const finalAmount = amount - itemDiscount
+      subtotal += finalAmount
+      
+      return {
+        ...item,
+        amount: finalAmount,
+        id: `item_${Date.now()}_${Math.random()}`
+      }
+    })
+    
+    const discountAmount = discountPercent > 0 ? (subtotal * parseFloat(discountPercent) / 100) : parseFloat(discount)
+    const totalAmount = subtotal - discountAmount + parseFloat(shippingCharges) + parseFloat(adjustment)
+    
+    const invoice = await prisma.invoices.create({
+      data: {
+        id: `inv_${Date.now()}`,
+        organizationId: req.auth?.organizationId || organizationId,
+        invoiceNumber,
+        customerId,
+        orderNumber,
+        issueDate: new Date(issueDate),
+        dueDate: new Date(dueDate),
+        terms: terms || 'Due on Receipt',
+        status: 'draft',
+        subtotal,
+        discount: discountAmount,
+        discountPercent: parseFloat(discountPercent),
+        shippingCharges: parseFloat(shippingCharges),
+        adjustment: parseFloat(adjustment),
+        totalAmount,
+        balanceDue: totalAmount,
+        location,
+        warehouse,
+        salespersonId: salespersonId || salesperson, // Use salespersonId if provided, fallback to salesperson
+        branchId, // Add branch ID to invoice
+        subject,
+        customerNotes,
+        termsConditions,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        invoice_items: {
+          create: processedItems.map(item => ({
+            id: item.id,
+            productId: item.productId,
+            itemName: item.itemName || item.name,
+            description: item.description,
+            quantity: parseFloat(item.quantity || 0),
+            unit: item.unit,
+            rate: parseFloat(item.rate || 0),
+            discount: parseFloat(item.discount || 0),
+            discountPercent: parseFloat(item.discountPercent || 0),
+            taxPercent: parseFloat(item.taxPercent || 0),
+            taxAmount: parseFloat(item.taxAmount || 0),
+            amount: item.amount,
+            salesAccountId: item.salesAccountId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }))
+        }
+      },
+      include: {
+        customers: true,
+        invoice_items: true
+      }
+    })
+    
+    res.status(201).json({
+      success: true,
+      data: invoice
+    })
+  } catch (error) {
+    console.error('Create invoice error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Update invoice
+app.put('/api/invoices/:id', async (req, res) => {
+  try {
+    const {
+      customerId,
+      invoiceNumber,
+      orderNumber,
+      issueDate,
+      dueDate,
+      terms,
+      location,
+      warehouse,
+      salespersonId, // Accept salespersonId directly from frontend
+      salesperson, // Keep for backward compatibility
+      branchId, // Branch ID for the invoice
+      subject,
+      customerNotes,
+      termsConditions,
+      items = [],
+      discount = 0,
+      discountPercent = 0,
+      shippingCharges = 0,
+      adjustment = 0,
+      status
+    } = req.body
+    
+    // Check if invoice exists and is editable
+    const existingInvoice = await prisma.invoices.findUnique({
+      where: { id: req.params.id }
+    })
+    
+    if (!existingInvoice) {
+      return res.status(404).json({
+        success: false,
+        error: 'Invoice not found'
+      })
+    }
+    
+    if (existingInvoice.status === 'paid') {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot edit a paid invoice'
+      })
+    }
+    
+    // Calculate totals
+    let subtotal = 0
+    const processedItems = items.map(item => {
+      const amount = parseFloat(item.quantity || 0) * parseFloat(item.rate || 0)
+      const itemDiscount = parseFloat(item.discount || 0)
+      const finalAmount = amount - itemDiscount
+      subtotal += finalAmount
+      
+      return {
+        ...item,
+        amount: finalAmount,
+        id: item.id || `item_${Date.now()}_${Math.random()}`
+      }
+    })
+    
+    const discountAmount = discountPercent > 0 ? (subtotal * parseFloat(discountPercent) / 100) : parseFloat(discount)
+    const totalAmount = subtotal - discountAmount + parseFloat(shippingCharges) + parseFloat(adjustment)
+    
+    // Delete existing items and create new ones
+    await prisma.invoice_items.deleteMany({
+      where: { invoiceId: req.params.id }
+    })
+    
+    const invoice = await prisma.invoices.update({
+      where: { id: req.params.id },
+      data: {
+        ...(customerId && { customerId }),
+        ...(invoiceNumber && { invoiceNumber }),
+        ...(orderNumber !== undefined && { orderNumber }),
+        ...(issueDate && { issueDate: new Date(issueDate) }),
+        ...(dueDate && { dueDate: new Date(dueDate) }),
+        ...(terms && { terms }),
+        ...(status && { status }),
+        subtotal,
+        discount: discountAmount,
+        discountPercent: parseFloat(discountPercent),
+        shippingCharges: parseFloat(shippingCharges),
+        adjustment: parseFloat(adjustment),
+        totalAmount,
+        balanceDue: totalAmount - existingInvoice.paidAmount,
+        ...(location !== undefined && { location }),
+        ...(warehouse !== undefined && { warehouse }),
+        ...(salespersonId !== undefined && { salespersonId }), // Use salespersonId directly
+        ...(salesperson !== undefined && { salespersonId: salesperson }), // Fallback to salesperson for backward compatibility
+        ...(branchId !== undefined && { branchId }), // Add branch ID handling
+        ...(subject !== undefined && { subject }),
+        ...(customerNotes !== undefined && { customerNotes }),
+        ...(termsConditions !== undefined && { termsConditions }),
+        updatedAt: new Date(),
+        invoice_items: {
+          create: processedItems.map(item => ({
+            id: item.id,
+            productId: item.productId,
+            itemName: item.itemName || item.name,
+            description: item.description,
+            quantity: parseFloat(item.quantity || 0),
+            unit: item.unit,
+            rate: parseFloat(item.rate || 0),
+            discount: parseFloat(item.discount || 0),
+            discountPercent: parseFloat(item.discountPercent || 0),
+            taxPercent: parseFloat(item.taxPercent || 0),
+            taxAmount: parseFloat(item.taxAmount || 0),
+            amount: item.amount,
+            salesAccountId: item.salesAccountId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }))
+        }
+      },
+      include: {
+        customers: true,
+        invoice_items: true
+      }
+    })
+    
+    res.json({
+      success: true,
+      data: invoice
+    })
+  } catch (error) {
+    console.error('Update invoice error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Delete invoice
+app.delete('/api/invoices/:id',
+  prohibitDeleteMiddleware('invoices'),
+  async (req, res) => {
+  try {
+    const existingInvoice = await prisma.invoices.findUnique({
+      where: { id: req.params.id },
+      include: { invoice_payments: true }
+    })
+    
+    if (!existingInvoice) {
+      return res.status(404).json({
+        success: false,
+        error: 'Invoice not found'
+      })
+    }
+    
+    if (existingInvoice.invoice_payments.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot delete invoice with payments recorded'
+      })
+    }
+    
+    // Delete invoice items first (cascade should handle this, but being explicit)
+    await prisma.invoice_items.deleteMany({
+      where: { invoiceId: req.params.id }
+    })
+    
+    // Delete the invoice
+    await prisma.invoices.delete({
+      where: { id: req.params.id }
+    })
+    
+    res.json({
+      success: true,
+      message: 'Invoice deleted successfully'
+    })
+  } catch (error) {
+    console.error('Delete invoice error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Confirm invoice (create journal entries and process inventory)
+app.post('/api/invoices/:id/confirm',
+  validateToken,
+  requirePermission('invoices:confirm'),
+  idempotencyMiddleware('confirm_invoice'),
+  postingPeriodMiddleware,
+  auditMiddleware('invoices'),
+  asyncHandler(async (req, res) => {
+    const invoice = await prisma.invoices.findUnique({
+      where: { id: req.params.id },
+      include: {
+        customers: true,
+        invoice_items: {
+          include: {
+            products: true,
+            ledger_accounts: true
+          }
+        }
+      }
+    })
+    
+    if (!invoice) {
+      throw new NotFoundError('Invoice')
+    }
+    
+    if (invoice.status !== 'draft') {
+      throw new BusinessLogicError('Only draft invoices can be confirmed', BUSINESS_ERROR_CODES.INVALID_TRANSACTION)
+    }
+    
+    // Get default warehouse for inventory processing
+    const defaultWarehouse = await prisma.warehouses.findFirst({
+      where: {
+        organizationId: invoice.organizationId,
+        isDefault: true
+      }
+    })
+    
+    if (!defaultWarehouse) {
+      throw new BusinessLogicError('No default warehouse found. Please create a warehouse first.', BUSINESS_ERROR_CODES.WAREHOUSE_NOT_FOUND)
+    }
+    
+    // Step 1: Process inventory outside main transaction to avoid deadlocks
+    let totalCOGS = 0
+    const inventoryResults = []
+    
+    for (const item of invoice.invoice_items) {
+      if (item.products?.trackInventory) {
+        try {
+          console.log(`📦 Processing inventory for ${item.products.name}...`)
+          
+          const consumptionResult = await inventoryService.processOutbound(
+            item.productId,
+            defaultWarehouse.id,
+            parseFloat(item.quantity),
+            'invoice',
+            invoice.id,
+            invoice.organizationId,
+            new Date() // Use current date for inventory availability
+          )
+          
+          totalCOGS += consumptionResult.totalCost
+          inventoryResults.push({
+            item: item.products,
+            result: consumptionResult
+          })
+          
+          console.log(`✅ Processed ${item.quantity} units, cost: ${consumptionResult.totalCost}`)
+        } catch (inventoryError) {
+          console.error(`Inventory processing error for item ${item.itemName}:`, inventoryError)
+          throw new BusinessLogicError(`Inventory error for ${item.itemName}: ${inventoryError.message}`, BUSINESS_ERROR_CODES.INSUFFICIENT_INVENTORY)
+        }
+      }
+    }
+    
+    // Step 2: Simple transaction for journal creation and status update
+    const result = await prisma.$transaction(async (tx) => {
+      console.log('📝 Creating journal entries...')
+      
+      // Create sales journal entry
+      const totalJournalAmount = parseFloat(invoice.totalAmount) + totalCOGS
+      const journal = await tx.journals.create({
+        data: {
+          id: `journal_${Date.now()}`,
+          organizationId: invoice.organizationId,
+          journalNumber: `SALES-${invoice.invoiceNumber}`,
+          journalDate: new Date(invoice.issueDate),
+          totalDebit: totalJournalAmount,
+          totalCredit: totalJournalAmount,
+          status: 'active',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
+      
+      // Create journal entries
+      const journalEntries = []
+      
+      // Get Accounts Receivable account
+      const arAccount = await tx.ledger_accounts.findFirst({
+        where: {
+          organizationId: invoice.organizationId,
+          type: 'accounts_receivable'
+        }
+      })
+      
+      if (!arAccount) {
+        throw new BusinessLogicError('Accounts Receivable account not found', BUSINESS_ERROR_CODES.MISSING_REQUIRED_ACCOUNT)
+      }
+      
+      // Debit Accounts Receivable
+      journalEntries.push({
+        id: `entry_${Date.now()}_1`,
+        journalId: journal.id,
+        accountId: arAccount.id,
+        description: `AR - Invoice ${invoice.invoiceNumber}`,
+        debitAmount: parseFloat(invoice.totalAmount),
+        creditAmount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      
+      // Get default Sales Revenue account
+      const defaultSalesAccount = await tx.ledger_accounts.findFirst({
+        where: {
+          organizationId: invoice.organizationId,
+          type: 'income',
+          name: { contains: 'Sales' }
+        }
+      })
+      
+      // Credit Sales accounts (group by sales account)
+      const salesAccounts = {}
+      invoice.invoice_items.forEach(item => {
+        const accountId = item.salesAccountId || defaultSalesAccount?.id
+        if (accountId) {
+          salesAccounts[accountId] = (salesAccounts[accountId] || 0) + parseFloat(item.amount)
+        }
+      })
+      
+      let entryCounter = 2
+      for (const [accountId, amount] of Object.entries(salesAccounts)) {
+        journalEntries.push({
+          id: `entry_${Date.now()}_${entryCounter}`,
+          journalId: journal.id,
+          accountId: accountId,
+          description: `Sales - Invoice ${invoice.invoiceNumber}`,
+          debitAmount: 0,
+          creditAmount: amount,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        entryCounter++
+      }
+      
+      // Add COGS entries if there's inventory consumption
+      if (totalCOGS > 0) {
+        // Get COGS account
+        const cogsAccount = await tx.ledger_accounts.findFirst({
+          where: {
+            organizationId: invoice.organizationId,
+            type: 'cost_of_goods_sold'
+          }
+        })
+        
+        // Get Inventory account
+        const inventoryAccount = await tx.ledger_accounts.findFirst({
+          where: {
+            organizationId: invoice.organizationId,
+            type: 'stock'
+          }
+        })
+        
+        if (cogsAccount && inventoryAccount) {
+          journalEntries.push({
+            id: `entry_cogs_${Date.now()}_1`,
+            journalId: journal.id,
+            accountId: cogsAccount.id,
+            description: `COGS - Invoice ${invoice.invoiceNumber}`,
+            debitAmount: totalCOGS,
+            creditAmount: 0,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          
+          journalEntries.push({
+            id: `entry_cogs_${Date.now()}_2`,
+            journalId: journal.id,
+            accountId: inventoryAccount.id,
+            description: `Inventory reduction - Invoice ${invoice.invoiceNumber}`,
+            debitAmount: 0,
+            creditAmount: totalCOGS,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+        }
+      }
+      
+      // Create all journal entries
+      await tx.journal_entries.createMany({
+        data: journalEntries
+      })
+      
+      // Update invoice status (minimal)
+      const updatedInvoice = await tx.invoices.update({
+        where: { id: req.params.id },
+        data: {
+          status: 'confirmed',
+          journalId: journal.id,
+          updatedAt: new Date()
+        }
+      })
+      
+      return {
+        invoice: updatedInvoice,
+        salesJournal: journal,
+        totalCOGS,
+        inventoryResults
+      }
+    }, {
+      timeout: 10000 // Reduced timeout for simpler transaction
+    })
+    
+    res.json({
+      success: true,
+      data: result,
+      message: 'Invoice confirmed, journal entries created, and inventory processed'
+    })
+  }))
+
+// Record payment for invoice
+app.post('/api/invoices/:id/payments',
+  validateToken,
+  idempotencyMiddleware('record_payment'),
+  postingPeriodMiddleware,
+  auditMiddleware('invoice_payments'),
+  async (req, res) => {
+  try {
+    const {
+      amountReceived,
+      paymentDate,
+      paymentMode = 'cash',
+      depositTo, // Bank account ID from Chart of Accounts
+      reference,
+      notes,
+      bankCharges = 0,
+      taxDeducted = false,
+      tdsAmount = 0
+    } = req.body
+    
+    if (!amountReceived || !paymentDate || !depositTo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Amount received, payment date, and deposit account are required'
+      })
+    }
+    
+    const invoice = await prisma.invoices.findUnique({
+      where: { id: req.params.id },
+      include: { customers: true }
+    })
+    
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        error: 'Invoice not found'
+      })
+    }
+    
+    if (invoice.status === 'draft') {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot record payment for draft invoice. Please confirm the invoice first.'
+      })
+    }
+    
+    const amount = parseFloat(amountReceived)
+    const charges = parseFloat(bankCharges)
+    const tds = parseFloat(tdsAmount)
+    
+    if (amount > invoice.balanceDue) {
+      return res.status(400).json({
+        success: false,
+        error: 'Payment amount cannot exceed balance due'
+      })
+    }
+    
+    // Create payment record
+    const payment = await prisma.invoice_payments.create({
+      data: {
+        id: `payment_${Date.now()}`,
+        invoiceId: req.params.id,
+        paymentNumber: `PAY-${invoice.invoiceNumber}-${Date.now()}`,
+        paymentDate: new Date(paymentDate),
+        amountReceived: amount,
+        bankCharges: charges,
+        paymentMode,
+        depositTo,
+        reference,
+        notes,
+        taxDeducted,
+        tdsAmount: tds,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    })
+    
+    // Create payment journal entry
+    const paymentJournal = await prisma.journals.create({
+      data: {
+        id: `journal_pay_${Date.now()}`,
+        organizationId: invoice.organizationId,
+        journalNumber: `JE-PAY-${invoice.invoiceNumber}-${Date.now()}`,
+        journalDate: new Date(paymentDate),
+        posting_date: new Date(paymentDate), // Add posting date field
+        reference: `Payment for Invoice ${invoice.invoiceNumber}`,
+        notes: `Payment received for invoice ${invoice.invoiceNumber} - ${invoice.customers.name}`,
+        totalDebit: amount,
+        totalCredit: amount,
+        status: 'active',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    })
+    
+    // Create payment journal entries
+    const paymentJournalEntries = []
+    
+    // Debit: Bank/Cash Account
+    paymentJournalEntries.push({
+      id: `pay_entry_${Date.now()}_1`,
+      journalId: paymentJournal.id,
+      accountId: depositTo,
+      description: `Payment received - Invoice ${invoice.invoiceNumber}`,
+      debitAmount: amount,
+      creditAmount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    })
+    
+    // Credit: Accounts Receivable
+    const arAccount = await prisma.ledger_accounts.findFirst({
+      where: {
+        organizationId: invoice.organizationId,
+        type: 'accounts_receivable'
+      }
+    })
+    
+    if (arAccount) {
+      paymentJournalEntries.push({
+        id: `pay_entry_${Date.now()}_2`,
+        journalId: paymentJournal.id,
+        accountId: arAccount.id,
+        description: `Payment received - Invoice ${invoice.invoiceNumber}`,
+        debitAmount: 0,
+        creditAmount: amount,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+    }
+    
+    // Create payment journal entries
+    await prisma.journal_entries.createMany({
+      data: paymentJournalEntries
+    })
+    
+    // Update payment with journal ID
+    await prisma.invoice_payments.update({
+      where: { id: payment.id },
+      data: { journalId: paymentJournal.id }
+    })
+
+    // Create bank transaction record
+    // Find the bank account associated with the deposit account
+    const bankAccount = await prisma.bank_accounts.findFirst({
+      where: { ledgerAccountId: depositTo }
+    })
+
+    if (bankAccount) {
+      // Get current balance and calculate new running balance
+      const currentBalance = parseFloat(bankAccount.currentBalance) || 0
+      const newRunningBalance = currentBalance + amount
+
+      // Create bank transaction
+      await prisma.bank_transactions.create({
+        data: {
+          id: `txn_${Date.now()}`,
+          bankAccountId: bankAccount.id,
+          organizationId: invoice.organizationId,
+          transactionDate: new Date(paymentDate),
+          transactionType: 'credit', // Money coming in
+          amount: amount,
+          runningBalance: newRunningBalance,
+          description: `Customer Payment - Invoice ${invoice.invoiceNumber}`,
+          reference: reference || payment.paymentNumber,
+          category: 'customer_payment',
+          counterparty: invoice.customers.name,
+          invoiceId: invoice.id,
+          paymentId: payment.id,
+          journalId: paymentJournal.id,
+          status: 'completed',
+          bankReference: reference,
+          notes: notes,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      })
+
+      // Update bank account balance
+      await prisma.bank_accounts.update({
+        where: { id: bankAccount.id },
+        data: { 
+          currentBalance: newRunningBalance,
+          updatedAt: new Date()
+        }
+      })
+    }
+    
+    // Update invoice paid amount and status
+    const newPaidAmount = parseFloat(invoice.paidAmount) + amount
+    const newBalanceDue = parseFloat(invoice.totalAmount) - newPaidAmount
+    const newStatus = newBalanceDue <= 0 ? 'paid' : 'confirmed'
+    
+    const updatedInvoice = await prisma.invoices.update({
+      where: { id: req.params.id },
+      data: {
+        paidAmount: newPaidAmount,
+        balanceDue: newBalanceDue,
+        status: newStatus,
+        updatedAt: new Date()
+      },
+      include: {
+        customers: true,
+        invoice_items: true,
+        invoice_payments: {
+          include: {
+            deposit_account: true,
+            payment_journal: true
+          }
+        }
+      }
+    })
+    
+    res.json({
+      success: true,
+      data: {
+        invoice: updatedInvoice,
+        payment: payment,
+        journal: paymentJournal
+      },
+      message: 'Payment recorded successfully'
+    })
+  } catch (error) {
+    console.error('Record payment error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// Void invoice (safe alternative to delete)
+app.post('/api/invoices/:id/void',
+  validateToken,
+  idempotencyMiddleware('void_invoice'),
+  auditMiddleware('invoices'),
+  async (req, res) => {
+  try {
+    const { reason } = req.body
+    const userId = req.headers['x-user-id'] || 'system'
+
+    const invoice = await prisma.invoices.findUnique({
+      where: { id: req.params.id },
+      include: { 
+        invoice_payments: true,
+        invoice_items: true
+      }
+    })
+
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' })
+    }
+
+    if (invoice.status === 'voided') {
+      return res.status(400).json({ error: 'Invoice is already voided' })
+    }
+
+    if (invoice.invoice_payments.length > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot void invoice with payments',
+        message: 'Please reverse payments first'
+      })
+    }
+
+    // Update invoice status to voided
+    const voidedInvoice = await prisma.invoices.update({
+      where: { id: req.params.id },
+      data: {
+        status: 'voided',
+        voided_at: new Date(),
+        voided_by: userId,
+        customerNotes: invoice.customerNotes 
+          ? `${invoice.customerNotes}\n\nVOIDED: ${reason || 'No reason provided'}`
+          : `VOIDED: ${reason || 'No reason provided'}`
+      }
+    })
+
+    // TODO: Create reversing journal entries if invoice was confirmed
+    // TODO: Reverse inventory movements if applicable
+
+    res.json({
+      success: true,
+      invoice: voidedInvoice,
+      message: 'Invoice voided successfully'
+    })
+
+  } catch (error) {
+    console.error('Error voiding invoice:', error)
+    res.status(500).json({
+      error: error.message
+    })
+  }
+})
+
+// Reverse invoice (create correcting entries)
+app.post('/api/invoices/:id/reverse',
+  validateToken,
+  idempotencyMiddleware('reverse_invoice'),
+  postingPeriodMiddleware,
+  auditMiddleware('invoices'),
+  async (req, res) => {
+  try {
+    const { reason, newInvoiceData } = req.body
+    const userId = req.headers['x-user-id'] || 'system'
+
+    const originalInvoice = await prisma.invoices.findUnique({
+      where: { id: req.params.id },
+      include: { 
+        invoice_items: true,
+        journals: true
+      }
+    })
+
+    if (!originalInvoice) {
+      return res.status(404).json({ error: 'Invoice not found' })
+    }
+
+    if (originalInvoice.status !== 'confirmed') {
+      return res.status(400).json({ 
+        error: 'Can only reverse confirmed invoices',
+        message: 'Use void for draft invoices'
+      })
+    }
+
+    // TODO: Create reversing journal entries
+    // TODO: Reverse inventory movements
+    // TODO: Create new corrected invoice if newInvoiceData provided
+
+    res.json({
+      success: true,
+      message: 'Invoice reversal initiated',
+      originalInvoice: originalInvoice.id,
+      reversalJournal: 'TODO: implement journal reversal'
+    })
+
+  } catch (error) {
+    console.error('Error reversing invoice:', error)
+    res.status(500).json({
+      error: error.message
+    })
+  }
+})
+
+// =============================================
+// METRICS ENDPOINT
+// =============================================
+
+app.get('/api/metrics', metricsCacheMiddleware, async (req, res) => {
+  try {
+    console.log('📊 Getting metrics...')
+    
+    // Get counts from different tables
+    const [accountsCount, organizationsCount, usersCount, itemsCount, bankAccountsCount, customersCount, vendorsCount, invoicesCount] = await Promise.all([
+      prisma.ledger_accounts.count(),
+      prisma.organizations.count(),
+      prisma.users.count(),
+      prisma.products.count(),
+      prisma.bank_accounts.count(),
+      prisma.customers.count(),
+      prisma.vendors.count(),
+      prisma.invoices.count()
+    ])
+    
+    res.json({
+      success: true,
+      data: {
+        accountsCount,
+        organizationsCount,
+        usersCount,
+        itemsCount,
+        bankAccountsCount,
+        customersCount,
+        vendorsCount,
+        invoicesCount
+      },
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    console.error('Metrics error:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// =============================================
+// DATABASE INFO
+// =============================================
+
+app.get('/api/info', async (req, res) => {
+  try {
+    const tables = await prisma.$queryRaw`
+      SELECT table_name, table_rows
+      FROM information_schema.tables 
+      WHERE table_schema = 'cashflowdb'
+      ORDER BY table_name
+    `
+    
+    res.json({
+      success: true,
+      database: 'cashflowdb',
+      host: '34.173.128.29',
+      tables: tables
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// =============================================
+// ERROR HANDLING
+// =============================================
+// SETTINGS ENDPOINTS
+// =============================================
+
+// Get organization profile
+app.get('/api/settings/organization-profile', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const profile = await prisma.organization_profiles.findUnique({
+      where: { organization_id: organizationId }
+    })
+
+    res.json({
+      success: true,
+      data: profile || {
+        organization_id: organizationId,
+        fiscal_year_start_month: 1,
+        fiscal_year_start_day: 1,
+        report_basis: 'accrual',
+        base_currency: 'MMK',
+        timezone: 'Asia/Yangon',
+        date_format: 'DD/MM/YYYY',
+        allow_negative_inventory: false,
+        auto_close_periods: false
+      }
+    })
+  } catch (error) {
+    console.error('Get organization profile error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get organization profile'
+    })
+  }
+})
+
+// Save organization profile
+app.post('/api/settings/organization-profile', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const {
+      fiscal_year_start_month,
+      fiscal_year_start_day,
+      report_basis,
+      base_currency,
+      timezone,
+      date_format,
+      allow_negative_inventory,
+      auto_close_periods,
+      retained_earnings_account_id
+    } = req.body
+
+    const profile = await prisma.organization_profiles.upsert({
+      where: { organization_id: organizationId },
+      update: {
+        fiscal_year_start_month: fiscal_year_start_month || 1,
+        fiscal_year_start_day: fiscal_year_start_day || 1,
+        report_basis: report_basis || 'accrual',
+        base_currency: base_currency || 'MMK',
+        timezone: timezone || 'Asia/Yangon',
+        date_format: date_format || 'DD/MM/YYYY',
+        allow_negative_inventory: allow_negative_inventory || false,
+        auto_close_periods: auto_close_periods || false,
+        retained_earnings_account_id,
+        updated_at: new Date(),
+        updated_by: req.auth?.userId
+      },
+      create: {
+        id: `profile_${Date.now()}`,
+        organization_id: organizationId,
+        fiscal_year_start_month: fiscal_year_start_month || 1,
+        fiscal_year_start_day: fiscal_year_start_day || 1,
+        report_basis: report_basis || 'accrual',
+        base_currency: base_currency || 'MMK',
+        timezone: timezone || 'Asia/Yangon',
+        date_format: date_format || 'DD/MM/YYYY',
+        allow_negative_inventory: allow_negative_inventory || false,
+        auto_close_periods: auto_close_periods || false,
+        retained_earnings_account_id,
+        created_at: new Date(),
+        updated_at: new Date(),
+        created_by: req.auth?.userId,
+        updated_by: req.auth?.userId
+      }
+    })
+
+    res.json({
+      success: true,
+      data: profile
+    })
+  } catch (error) {
+    console.error('Save organization profile error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save organization profile'
+    })
+  }
+})
+
+// Generate accounting periods
+app.post('/api/settings/generate-periods', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const { fiscal_year_start_month, fiscal_year_start_day } = req.body
+    const currentYear = new Date().getFullYear()
+    const periodsCreated = []
+
+    // Generate periods for current and next fiscal year
+    for (let yearOffset = 0; yearOffset < 2; yearOffset++) {
+      const fiscalYear = currentYear + yearOffset
+      
+      // Delete existing periods for this fiscal year first
+      await prisma.accounting_periods.deleteMany({
+        where: {
+          organization_id: organizationId,
+          fiscal_year: fiscalYear
+        }
+      })
+
+      // Generate 12 monthly periods
+      for (let month = 0; month < 12; month++) {
+        const periodStartMonth = ((fiscal_year_start_month - 1 + month) % 12) + 1
+        const periodYear = fiscalYear + Math.floor((fiscal_year_start_month - 1 + month) / 12)
+        
+        // Calculate start date (first day of the month)
+        const startDate = new Date(periodYear, periodStartMonth - 1, 1)
+        
+        // Calculate end date (last day of the month)
+        const endDate = new Date(periodYear, periodStartMonth, 0)
+
+        const periodName = startDate.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long' 
+        })
+
+        const period = await prisma.accounting_periods.create({
+          data: {
+            id: `period_${Date.now()}_${month}`,
+            organization_id: organizationId,
+            fiscal_year: fiscalYear,
+            period_number: month + 1,
+            period_name: periodName,
+            start_date: startDate,
+            end_date: endDate,
+            status: 'open',
+            created_at: new Date(),
+            updated_at: new Date()
+          }
+        })
+
+        periodsCreated.push(period)
+      }
+    }
+
+    res.json({
+      success: true,
+      periodsCreated: periodsCreated.length,
+      data: periodsCreated
+    })
+  } catch (error) {
+    console.error('Generate periods error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate accounting periods'
+    })
+  }
+})
+
+// Get accounting periods
+app.get('/api/settings/accounting-periods', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const periods = await prisma.accounting_periods.findMany({
+      where: { organization_id: organizationId },
+      orderBy: [
+        { fiscal_year: 'desc' },
+        { period_number: 'asc' }
+      ]
+    })
+
+    res.json({
+      success: true,
+      data: periods
+    })
+  } catch (error) {
+    console.error('Get accounting periods error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get accounting periods'
+    })
+  }
+})
+
+// Close accounting period
+app.post('/api/settings/accounting-periods/:id/close', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const periodId = req.params.id
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const period = await prisma.accounting_periods.update({
+      where: { 
+        id: periodId,
+        organization_id: organizationId 
+      },
+      data: {
+        status: 'closed',
+        closed_at: new Date(),
+        closed_by: req.auth?.userId,
+        updated_at: new Date()
+      }
+    })
+
+    res.json({
+      success: true,
+      data: period
+    })
+  } catch (error) {
+    console.error('Close period error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to close accounting period'
+    })
+  }
+})
+
+// Soft close accounting period
+app.post('/api/settings/accounting-periods/:id/soft_close', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const periodId = req.params.id
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const period = await prisma.accounting_periods.update({
+      where: { 
+        id: periodId,
+        organization_id: organizationId 
+      },
+      data: {
+        status: 'soft_closed',
+        closed_at: new Date(),
+        closed_by: req.auth?.userId,
+        updated_at: new Date()
+      }
+    })
+
+    res.json({
+      success: true,
+      data: period
+    })
+  } catch (error) {
+    console.error('Soft close period error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to soft close accounting period'
+    })
+  }
+})
+
+// Reopen accounting period
+app.post('/api/settings/accounting-periods/:id/reopen', validateToken, async (req, res) => {
+  try {
+    const organizationId = req.auth?.organizationId
+    const periodId = req.params.id
+    
+    if (!organizationId) {
+      return res.status(403).json({
+        success: false,
+        error: 'No organization access'
+      })
+    }
+
+    const period = await prisma.accounting_periods.update({
+      where: { 
+        id: periodId,
+        organization_id: organizationId 
+      },
+      data: {
+        status: 'open',
+        reopened_at: new Date(),
+        reopened_by: req.auth?.userId,
+        updated_at: new Date()
+      }
+    })
+
+    res.json({
+      success: true,
+      data: period
+    })
+  } catch (error) {
+    console.error('Reopen period error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reopen accounting period'
+    })
+  }
+})
+
+// =============================================
+
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found',
+    path: req.originalUrl
+  })
+})
+
+app.use((error, req, res, next) => {
+  console.error('Server error:', error)
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error'
+  })
+})
+
+// =============================================
+// START SERVER
+// =============================================
+
+async function startServer() {
+  try {
+    // Test database
+    console.log('🔍 Testing database connection...')
+    const result = await prisma.$queryRaw`SELECT DATABASE() as db, NOW() as time`
+    console.log('✅ Database connected:', result)
+    
+    // Start server
+    app.listen(PORT, () => {
+      console.log('')
+      console.log('🎉 ===================================')
+      console.log('🚀 Clean BFF Server Started!')
+      console.log('🎉 ===================================')
+      console.log(`📡 Port: ${PORT}`)
+      console.log(`💾 Database: Cloud SQL`)
+      console.log(`🕒 Time: ${new Date().toISOString()}`)
+      console.log('')
+      console.log('🔗 Endpoints:')
+      console.log(`   GET    /health`)
+      console.log(`   POST   /auth/login`)
+      console.log(`   GET    /api/accounts (CRUD)`)
+      console.log(`   GET    /api/items (CRUD + Inventory)`)
+      console.log(`   GET    /api/customers (CRUD)`)
+      console.log(`   GET    /api/bank-accounts (CRUD)`)
+      console.log(`   GET    /api/vendors (CRUD)`)
+      console.log(`   GET    /api/invoices (CRUD + Workflow)`)
+      console.log(`   GET    /api/branches (CRUD)`)
+      console.log(`   GET    /api/warehouses (CRUD + Management)`)
+      console.log(`   GET    /api/inventory-transfers (CRUD + Workflow)`)
+      console.log(`   POST   /api/invoices/:id/confirm`)
+      console.log(`   POST   /api/invoices/:id/payments`)
+      console.log(`   GET    /api/organizations`)
+      console.log(`   GET    /api/users`)
+      console.log(`   GET    /api/metrics`)
+      console.log(`   GET    /api/info`)
+      console.log('')
+      console.log('✅ Ready for requests!')
+    })
+    
+  } catch (error) {
+    console.error('❌ Failed to start server:', error)
+    process.exit(1)
+  }
+}
+
+// =============================================
+// ERROR HANDLING MIDDLEWARE
+// =============================================
+
+// 404 handler for undefined routes
+app.use(notFoundHandler)
+
+// Global error handler (must be last middleware)
+app.use(errorHandler)
+
+// Export app for testing
+module.exports = app
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Shutting down...')
+  await prisma.$disconnect()
+  process.exit(0)
+})
+
+// Only start server if this file is run directly (not imported for testing)
+if (require.main === module) {
+  startServer()
+}

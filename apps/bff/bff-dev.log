@@ -1,0 +1,74 @@
+🚀 Fixed server running on port 4000
+🔗 Health check: http://localhost:4000/health
+🔗 Items API: http://localhost:4000/api/items
+🔍 POST /api/items - Debug Info:
+   - trackInventory: true
+   - openingBalances length: 4
+   - openingBalances: [
+  {
+    "warehouseId": "warehouse_1755952297500",
+    "quantity": 20,
+    "unitCost": 20000
+  },
+  {
+    "warehouseId": "warehouse_1756002103536",
+    "quantity": 20,
+    "unitCost": 20000
+  },
+  {
+    "warehouseId": "warehouse_1755951413903",
+    "quantity": 20,
+    "unitCost": 20000
+  },
+  {
+    "warehouseId": "warehouse_1755942595190",
+    "quantity": 20,
+    "unitCost": 20000
+  }
+]
+✅ Item created: item_1756445481367
+🔧 Checking opening balance creation:
+   - trackInventory: true
+   - openingBalances.length: 4
+   - Condition met: true
+💰 Creating opening balances for 4 warehouses
+🔍 Processing opening balance: {
+  warehouseId: 'warehouse_1755952297500',
+  quantity: 20,
+  unitCost: 20000
+}
+   - quantity: 20
+   - unitCost: 20000
+   ✅ Creating opening balance - Qty: 20, Cost: 20000, Total: 400000
+   📊 Successfully created all records for warehouse warehouse_1755952297500
+🔍 Processing opening balance: {
+  warehouseId: 'warehouse_1756002103536',
+  quantity: 20,
+  unitCost: 20000
+}
+   - quantity: 20
+   - unitCost: 20000
+   ✅ Creating opening balance - Qty: 20, Cost: 20000, Total: 400000
+   📊 Successfully created all records for warehouse warehouse_1756002103536
+🔍 Processing opening balance: {
+  warehouseId: 'warehouse_1755951413903',
+  quantity: 20,
+  unitCost: 20000
+}
+   - quantity: 20
+   - unitCost: 20000
+   ✅ Creating opening balance - Qty: 20, Cost: 20000, Total: 400000
+   📊 Successfully created all records for warehouse warehouse_1755951413903
+🔍 Processing opening balance: {
+  warehouseId: 'warehouse_1755942595190',
+  quantity: 20,
+  unitCost: 20000
+}
+   - quantity: 20
+   - unitCost: 20000
+   ✅ Creating opening balance - Qty: 20, Cost: 20000, Total: 400000
+   📊 Successfully created all records for warehouse warehouse_1755942595190
+🔢 Getting final item with stock information...
+🔢 Calculating stock on hand for item item_1756445481367
+   - Found 4 inventory levels
+   - Total stock on hand: 80

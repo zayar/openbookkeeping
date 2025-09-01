@@ -1,0 +1,15 @@
+{
+  "name": "@aiaccounting/oa-server-deploy",
+  "version": "1.0.0",
+  "description": "Open Accounting Server deployment package",
+  "scripts": {
+    "build": "docker build -t aiaccounting-oa-server .",
+    "start": "docker run -p 8080:8080 aiaccounting-oa-server",
+    "dev": "docker-compose up oa-server",
+    "db:setup": "node scripts/setup-db.js",
+    "deploy": "gcloud run deploy oa-server --source . --platformpreset=cloudrun --region=us-central1 --allow-unauthenticated --set-env-vars=\"DB_HOST=34.123.50.107,DB_USER=gtadmin,DB_NAME=openaccounting\" --set-secrets=\"DB_PASSWORD=OA_DB_PASSWORD:latest\""
+  },
+  "devDependencies": {
+    "mysql2": "^3.0.0"
+  }
+}

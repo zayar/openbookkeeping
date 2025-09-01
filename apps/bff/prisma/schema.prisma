@@ -1,0 +1,975 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("BFF_DATABASE_URL")
+}
+
+model accounts {
+  id                String  @id
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  users             users   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId], map: "accounts_userId_fkey")
+}
+
+model api_keys {
+  id             String        @id
+  organizationId String
+  name           String
+  keyHash        String        @unique
+  scopes         Json
+  lastUsedAt     DateTime?
+  usageCount     Int           @default(0)
+  isActive       Boolean       @default(true)
+  expiresAt      DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime
+  organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId], map: "api_keys_organizationId_fkey")
+}
+
+model audit_logs {
+  id             String        @id
+  organizationId String
+  userId         String?
+  action         String
+  resource       String
+  resourceId     String?
+  ipAddress      String?
+  userAgent      String?
+  method         String?
+  url            String?
+  oldValues      Json?
+  newValues      Json?
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([action])
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model bank_accounts {
+  id                String              @id
+  organizationId    String
+  bankName          String
+  accountName       String
+  accountNumber     String
+  routingNumber     String?
+  accountType       String              @default("checking")
+  currency          String              @default("MMK")
+  description       String?             @db.Text
+  isPrimary         Boolean             @default(false)
+  branch            String?
+  swiftCode         String?
+  iban              String?
+  ledgerAccountId   String?             @unique
+  currentBalance    Decimal             @default(0.00) @db.Decimal(12, 2)
+  isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime
+  ledger_accounts   ledger_accounts?    @relation(fields: [ledgerAccountId], references: [id])
+  bank_transactions bank_transactions[]
+
+  @@unique([organizationId, accountNumber])
+  @@index([currency])
+  @@index([organizationId])
+}
+
+model bank_transactions {
+  id              String        @id
+  bankAccountId   String
+  organizationId  String
+  transactionDate DateTime
+  transactionType String
+  amount          Decimal       @db.Decimal(12, 2)
+  runningBalance  Decimal       @db.Decimal(12, 2)
+  description     String
+  reference       String?
+  category        String?
+  counterparty    String?
+  invoiceId       String?
+  paymentId       String?
+  journalId       String?
+  status          String        @default("completed")
+  bankReference   String?
+  notes           String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime
+  bank_accounts   bank_accounts @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  invoices        invoices?     @relation(fields: [invoiceId], references: [id])
+  journals        journals?     @relation(fields: [journalId], references: [id])
+
+  @@index([bankAccountId])
+  @@index([organizationId])
+  @@index([transactionDate])
+  @@index([transactionType])
+  @@index([invoiceId], map: "bank_transactions_invoiceId_fkey")
+  @@index([journalId], map: "bank_transactions_journalId_fkey")
+}
+
+model cache_entries {
+  id        String    @id
+  key       String    @unique
+  value     Json
+  tags      Json
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime
+
+  @@index([expiresAt])
+  @@index([key])
+}
+
+model customers {
+  id                    String     @id
+  organizationId        String
+  oaCustomerId          String?    @unique
+  name                  String
+  displayName           String?
+  email                 String?
+  phone                 String?
+  mobile                String?
+  customerType          String     @default("business")
+  salutation            String?
+  firstName             String?
+  lastName              String?
+  companyName           String?
+  billingAddress        Json?
+  shippingAddress       Json?
+  industry              String?
+  source                String?
+  priority              String     @default("normal")
+  companyId             String?
+  currency              String     @default("MMK")
+  taxRate               String?
+  paymentTerms          String?
+  openingBalance        Decimal?   @db.Decimal(12, 2)
+  openingBalanceAccount String?
+  enablePortal          Boolean    @default(false)
+  portalLanguage        String?    @default("English")
+  tags                  Json?
+  notes                 String?    @db.Text
+  remarks               String?    @db.Text
+  isActive              Boolean    @default(true)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime
+  lastContactAt         DateTime?
+  invoices              invoices[]
+
+  @@index([currency])
+  @@index([customerType])
+  @@index([oaCustomerId])
+  @@index([organizationId])
+}
+
+model ledger_accounts {
+  id                                                    String             @id
+  organizationId                                        String
+  code                                                  String
+  name                                                  String
+  type                                                  String
+  description                                           String?
+  isActive                                              Boolean            @default(true)
+  createdAt                                             DateTime           @default(now())
+  updatedAt                                             DateTime
+  bank_accounts                                         bank_accounts?
+  invoice_items                                         invoice_items[]
+  invoice_payments                                      invoice_payments[]
+  journal_entries                                       journal_entries[]
+  products_products_inventoryAccountIdToledger_accounts products[]         @relation("products_inventoryAccountIdToledger_accounts")
+  products_products_purchaseAccountIdToledger_accounts  products[]         @relation("products_purchaseAccountIdToledger_accounts")
+  products_products_salesAccountIdToledger_accounts     products[]         @relation("products_salesAccountIdToledger_accounts")
+
+  @@unique([organizationId, code])
+  @@index([organizationId, type])
+}
+
+model organization_invitations {
+  id              String        @id
+  organizationId  String
+  email           String
+  role            String        @default("member")
+  token           String        @unique
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  invitedByUserId String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime
+  organizations   organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId], map: "organization_invitations_organizationId_fkey")
+}
+
+model organization_members {
+  id             String        @id
+  organizationId String
+  userId         String
+  role           String        @default("member")
+  permissions    Json?
+  status         String        @default("active")
+  joinedAt       DateTime      @default(now())
+  updatedAt      DateTime
+  organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users          users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId], map: "organization_members_userId_fkey")
+}
+
+model organization_settings {
+  id                          String        @id
+  organizationId              String        @unique
+  accountNumbering            String        @default("auto")
+  decimalPrecision            Int           @default(2)
+  negativeAmountFormat        String        @default("parentheses")
+  invoicePrefix               String        @default("INV")
+  invoiceNumbering            String        @default("auto")
+  defaultPaymentTerms         String        @default("Net 30")
+  defaultTaxRate              Decimal       @default(0.0000) @db.Decimal(5, 4)
+  taxNumberRequired           Boolean       @default(false)
+  requireApprovalForExpenses  Boolean       @default(false)
+  requireApprovalForPurchases Boolean       @default(false)
+  webhookUrl                  String?
+  slackWebhook                String?
+  customFields                Json?
+  createdAt                   DateTime      @default(now())
+  updatedAt                   DateTime
+  organizations               organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model organizations {
+  id                       String                     @id
+  name                     String
+  slug                     String                     @unique
+  description              String?
+  logo                     String?
+  oaOrganizationId         String                     @unique
+  baseCurrency             String                     @default("MMK")
+  fiscalYearStart          String                     @default("01-01")
+  timezone                 String                     @default("Asia/Yangon")
+  address                  String?
+  city                     String?
+  state                    String?
+  country                  String                     @default("Myanmar")
+  postalCode               String?
+  phone                    String?
+  email                    String?
+  website                  String?
+  taxNumber                String?
+  registrationNumber       String?
+  subscriptionStatus       String                     @default("trial")
+  subscriptionPlan         String                     @default("basic")
+  billingCycle             String                     @default("monthly")
+  multiCurrency            Boolean                    @default(false)
+  advancedReporting        Boolean                    @default(false)
+  apiAccess                Boolean                    @default(false)
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime
+  api_keys                 api_keys[]
+  audit_logs               audit_logs[]
+  branches                 branches[]
+  inventory_transfers      inventory_transfers[]
+  organization_invitations organization_invitations[]
+  organization_members     organization_members[]
+  organization_settings    organization_settings?
+  salespersons             salespersons[]
+  warehouses               warehouses[]
+}
+
+model branches {
+  id                       String        @id
+  organizationId           String
+  name                     String
+  addressLine1             String?
+  addressLine2             String?
+  city                     String?
+  state                    String?
+  postalCode               String?
+  country                  String        @default("Myanmar")
+  phone                    String?
+  fax                      String?
+  website                  String?
+  defaultTransactionSeries String?
+  isDefault                Boolean       @default(false)
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime
+  isActive                 Boolean       @default(true)
+  organizations            organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices                 invoices[]
+  warehouses               warehouses[]
+
+  @@index([organizationId])
+  @@index([isDefault])
+  @@index([name])
+  @@index([isActive])
+}
+
+model products {
+  id                                                          String                       @id
+  organizationId                                              String
+  oaItemId                                                    String?                      @unique
+  name                                                        String
+  sku                                                         String?
+  type                                                        String                       @default("goods")
+  description                                                 String?                      @db.Text
+  unit                                                        String?
+  sellingPrice                                                Decimal                      @db.Decimal(12, 2)
+  costPrice                                                   Decimal                      @db.Decimal(12, 2)
+  currency                                                    String                       @default("MMK")
+  salesAccountId                                              String?
+  purchaseAccountId                                           String?
+  category                                                    String?
+  brand                                                       String?
+  tags                                                        Json?
+  trackInventory                                              Boolean                      @default(false)
+  currentStock                                                Decimal?                     @db.Decimal(12, 2)
+  lowStockAlert                                               Decimal?                     @db.Decimal(12, 2)
+  isActive                                                    Boolean                      @default(true)
+  createdAt                                                   DateTime                     @default(now())
+  updatedAt                                                   DateTime
+  inventoryAccountId                                          String?
+  inventoryValuationMethod                                    String                       @default("FIFO")
+  inventory_layers                                            inventory_layers[]
+  inventory_movements                                         inventory_movements[]
+  inventory_opening_balances                                  inventory_opening_balances[]
+  inventory_transfer_items                                    inventory_transfer_items[]
+  invoice_items                                               invoice_items[]
+  inventory_account                                           ledger_accounts?             @relation("products_inventoryAccountIdToledger_accounts", fields: [inventoryAccountId], references: [id])
+  ledger_accounts_products_purchaseAccountIdToledger_accounts ledger_accounts?             @relation("products_purchaseAccountIdToledger_accounts", fields: [purchaseAccountId], references: [id])
+  ledger_accounts_products_salesAccountIdToledger_accounts    ledger_accounts?             @relation("products_salesAccountIdToledger_accounts", fields: [salesAccountId], references: [id])
+
+  @@index([currency])
+  @@index([oaItemId])
+  @@index([organizationId])
+  @@index([purchaseAccountId], map: "products_purchaseAccountId_fkey")
+  @@index([salesAccountId], map: "products_salesAccountId_fkey")
+  @@index([inventoryAccountId], map: "products_inventoryAccountId_fkey")
+  @@index([type])
+  @@index([trackInventory])
+}
+
+model sessions {
+  id           String   @id
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  users        users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "sessions_userId_fkey")
+}
+
+model sync_status {
+  id               String    @id
+  organizationId   String
+  resource         String
+  lastSyncAt       DateTime?
+  nextSyncAt       DateTime?
+  status           String    @default("pending")
+  errorMessage     String?
+  recordsProcessed Int       @default(0)
+  totalRecords     Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime
+
+  @@unique([organizationId, resource])
+}
+
+model user_preferences {
+  id                 String   @id
+  userId             String   @unique
+  theme              String   @default("system")
+  sidebarCollapsed   Boolean  @default(false)
+  language           String   @default("en")
+  dashboardLayout    Json?
+  favoriteReports    Json?
+  emailNotifications Boolean  @default(true)
+  pushNotifications  Boolean  @default(true)
+  weeklyDigest       Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime
+}
+
+model users {
+  id                    String                  @id
+  email                 String                  @unique
+  name                  String?
+  avatar                String?
+  emailVerified         DateTime?
+  googleId              String?                 @unique
+  defaultCurrency       String                  @default("MMK")
+  timezone              String                  @default("Asia/Yangon")
+  locale                String                  @default("en")
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime
+  lastLoginAt           DateTime?
+  accounts              accounts[]
+  organization_members  organization_members[]
+  sessions              sessions[]
+  warehouse_permissions warehouse_permissions[]
+}
+
+model verification_tokens {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model vendors {
+  id                    String    @id
+  organizationId        String
+  oaVendorId            String?   @unique
+  name                  String
+  email                 String?
+  phone                 String?
+  vendorType            String    @default("supplier")
+  industry              String?
+  paymentTerms          String?   @default("net30")
+  taxId                 String?
+  address               Json?
+  notes                 String?   @db.Text
+  isActive              Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime
+  lastContactAt         DateTime?
+  companyId             String?
+  companyName           String?
+  currency              String    @default("MMK")
+  displayName           String?
+  firstName             String?
+  lastName              String?
+  mobile                String?
+  openingBalance        Decimal?  @db.Decimal(12, 2)
+  openingBalanceAccount String?
+  priority              String    @default("normal")
+  remarks               String?   @db.Text
+  salutation            String?
+  website               String?
+
+  @@index([currency])
+  @@index([organizationId])
+  @@index([vendorType])
+}
+
+model invoices {
+  id                String              @id
+  organizationId    String
+  oaInvoiceId       String?             @unique
+  invoiceNumber     String              @unique
+  customerId        String
+  orderNumber       String?
+  issueDate         DateTime
+  dueDate           DateTime
+  terms             String              @default("Due on Receipt")
+  status            String              @default("draft")
+  subtotal          Decimal             @db.Decimal(12, 2)
+  discount          Decimal             @default(0.00) @db.Decimal(5, 2)
+  discountPercent   Decimal             @default(0.00) @db.Decimal(5, 2)
+  shippingCharges   Decimal             @default(0.00) @db.Decimal(12, 2)
+  adjustment        Decimal             @default(0.00) @db.Decimal(12, 2)
+  taxAmount         Decimal             @default(0.00) @db.Decimal(12, 2)
+  totalAmount       Decimal             @db.Decimal(12, 2)
+  paidAmount        Decimal             @default(0.00) @db.Decimal(12, 2)
+  balanceDue        Decimal             @default(0.00) @db.Decimal(12, 2)
+  currency          String              @default("MMK")
+  location          String?
+  warehouse         String?
+  salespersonId     String?
+  branchId          String?
+  subject           String?
+  customerNotes     String?             @db.Text
+  termsConditions   String?             @db.Text
+  journalId         String?             @unique
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime
+  bank_transactions bank_transactions[]
+  invoice_items     invoice_items[]
+  invoice_payments  invoice_payments[]
+  branches          branches?           @relation(fields: [branchId], references: [id])
+  customers         customers           @relation(fields: [customerId], references: [id])
+  journals          journals?           @relation(fields: [journalId], references: [id])
+  salespersons      salespersons?       @relation(fields: [salespersonId], references: [id])
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([salespersonId])
+  @@index([branchId])
+  @@index([status])
+  @@index([issueDate])
+  @@index([dueDate])
+}
+
+model invoice_items {
+  id              String           @id
+  invoiceId       String
+  productId       String?
+  itemName        String
+  description     String?
+  quantity        Decimal          @db.Decimal(12, 2)
+  unit            String?
+  rate            Decimal          @db.Decimal(12, 2)
+  discount        Decimal          @default(0.00) @db.Decimal(12, 2)
+  discountPercent Decimal          @default(0.00) @db.Decimal(5, 2)
+  taxId           String?
+  taxPercent      Decimal          @default(0.00) @db.Decimal(5, 2)
+  taxAmount       Decimal          @default(0.00) @db.Decimal(12, 2)
+  amount          Decimal          @db.Decimal(12, 2)
+  salesAccountId  String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime
+  invoices        invoices         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  products        products?        @relation(fields: [productId], references: [id])
+  ledger_accounts ledger_accounts? @relation(fields: [salesAccountId], references: [id])
+  taxes           taxes?           @relation(fields: [taxId], references: [id])
+
+  @@index([invoiceId])
+  @@index([productId])
+  @@index([taxId])
+  @@index([salesAccountId], map: "invoice_items_salesAccountId_fkey")
+}
+
+model invoice_payments {
+  id              String          @id
+  invoiceId       String
+  paymentNumber   String          @unique
+  paymentDate     DateTime
+  amountReceived  Decimal         @db.Decimal(12, 2)
+  bankCharges     Decimal         @default(0.00) @db.Decimal(12, 2)
+  paymentMode     String          @default("cash")
+  depositTo       String
+  reference       String?
+  notes           String?         @db.Text
+  taxDeducted     Boolean         @default(false)
+  tdsAmount       Decimal         @default(0.00) @db.Decimal(12, 2)
+  journalId       String?         @unique
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime
+  deposit_account ledger_accounts @relation(fields: [depositTo], references: [id])
+  invoices        invoices        @relation(fields: [invoiceId], references: [id])
+  payment_journal journals?       @relation(fields: [journalId], references: [id])
+
+  @@index([invoiceId])
+  @@index([paymentDate])
+  @@index([depositTo])
+}
+
+model journals {
+  id                         String                      @id
+  organizationId             String
+  journalNumber              String                      @unique
+  journalDate                DateTime
+  reference                  String?
+  notes                      String?                     @db.Text
+  totalDebit                 Decimal                     @db.Decimal(12, 2)
+  totalCredit                Decimal                     @db.Decimal(12, 2)
+  status                     String                      @default("active")
+  createdAt                  DateTime                    @default(now())
+  updatedAt                  DateTime
+  bank_transactions          bank_transactions[]
+  inventory_movements        inventory_movements[]
+  inventory_opening_balances inventory_opening_balances?
+  inventory_transfers        inventory_transfers?
+  invoice_payments           invoice_payments?
+  invoices                   invoices?
+  journal_entries            journal_entries[]
+
+  @@index([organizationId])
+  @@index([journalDate])
+  @@index([status])
+}
+
+model journal_entries {
+  id              String          @id
+  journalId       String
+  accountId       String
+  description     String?
+  debitAmount     Decimal         @default(0.00) @db.Decimal(12, 2)
+  creditAmount    Decimal         @default(0.00) @db.Decimal(12, 2)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime
+  ledger_accounts ledger_accounts @relation(fields: [accountId], references: [id])
+  journals        journals        @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@index([journalId])
+  @@index([accountId])
+}
+
+model taxes {
+  id             String          @id
+  name           String
+  rate           Decimal         @db.Decimal(5, 2)
+  type           String          @default("standard")
+  isCompound     Boolean         @default(false)
+  description    String?         @db.Text
+  organizationId String?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime
+  invoice_items  invoice_items[]
+
+  @@index([organizationId])
+  @@index([name])
+  @@index([type])
+  @@index([isActive])
+}
+
+model salespersons {
+  id             String        @id
+  organizationId String
+  name           String
+  email          String?       @unique
+  status         String        @default("active")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime
+  invoices       invoices[]
+  organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([email])
+}
+
+model warehouses {
+  id                         String                       @id
+  organizationId             String
+  branchId                   String
+  name                       String
+  code                       String?                      @unique
+  address                    String?
+  city                       String?
+  state                      String?
+  postalCode                 String?
+  country                    String                       @default("Myanmar")
+  phone                      String?
+  email                      String?
+  managerName                String?
+  managerEmail               String?
+  warehouseType              String                       @default("standard")
+  capacity                   Decimal?                     @db.Decimal(12, 2)
+  currentUtilization         Decimal?                     @db.Decimal(5, 2)
+  isDefault                  Boolean                      @default(false)
+  isActive                   Boolean                      @default(true)
+  isPrimary                  Boolean                      @default(false)
+  allowNegativeInventory     Boolean                      @default(false)
+  autoReorderEnabled         Boolean                      @default(false)
+  costCenter                 String?
+  notes                      String?                      @db.Text
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime
+  inventory_layers           inventory_layers[]
+  inventory_movements        inventory_movements[]
+  inventory_opening_balances inventory_opening_balances[]
+  inventory_transfers_from   inventory_transfers[]        @relation("TransferFrom")
+  inventory_transfers_to     inventory_transfers[]        @relation("TransferTo")
+  warehouse_permissions      warehouse_permissions[]
+  branches                   branches                     @relation(fields: [branchId], references: [id])
+  organizations              organizations                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@unique([branchId, isPrimary])
+  @@index([organizationId])
+  @@index([branchId])
+  @@index([isDefault])
+  @@index([isActive])
+  @@index([isPrimary])
+  @@index([warehouseType])
+}
+
+model inventory_opening_balances {
+  id          String     @id
+  itemId      String
+  warehouseId String
+  quantity    Decimal    @db.Decimal(12, 4)
+  unitCost    Decimal    @db.Decimal(12, 4)
+  totalValue  Decimal    @db.Decimal(12, 2)
+  asOfDate    DateTime
+  journalId   String?    @unique
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime
+  products    products   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  journals    journals?  @relation(fields: [journalId], references: [id])
+  warehouses  warehouses @relation(fields: [warehouseId], references: [id])
+
+  @@unique([itemId, warehouseId])
+  @@index([itemId])
+  @@index([warehouseId])
+  @@index([asOfDate])
+}
+
+model inventory_layers {
+  id                  String                @id
+  itemId              String
+  warehouseId         String
+  quantityRemaining   Decimal               @db.Decimal(12, 4)
+  unitCost            Decimal               @db.Decimal(12, 4)
+  sourceType          String
+  sourceId            String?
+  batchNumber         String?
+  expiryDate          DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  products            products              @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  warehouses          warehouses            @relation(fields: [warehouseId], references: [id])
+  inventory_movements inventory_movements[]
+
+  @@index([itemId, warehouseId, createdAt])
+  @@index([sourceType, sourceId])
+  @@index([expiryDate])
+  @@index([warehouseId], map: "inventory_layers_warehouseId_fkey")
+}
+
+model inventory_movements {
+  id               String            @id
+  itemId           String
+  warehouseId      String
+  layerId          String?
+  direction        String
+  quantity         Decimal           @db.Decimal(12, 4)
+  unitCost         Decimal           @db.Decimal(12, 4)
+  totalValue       Decimal           @db.Decimal(12, 2)
+  movementType     String
+  sourceType       String?
+  sourceId         String?
+  journalId        String?
+  reference        String?
+  notes            String?           @db.Text
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime
+  products         products          @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  journals         journals?         @relation(fields: [journalId], references: [id])
+  inventory_layers inventory_layers? @relation(fields: [layerId], references: [id])
+  warehouses       warehouses        @relation(fields: [warehouseId], references: [id])
+
+  @@index([itemId, warehouseId, createdAt])
+  @@index([movementType])
+  @@index([sourceType, sourceId])
+  @@index([journalId])
+  @@index([layerId], map: "inventory_movements_layerId_fkey")
+  @@index([warehouseId], map: "inventory_movements_warehouseId_fkey")
+}
+
+model warehouse_permissions {
+  id          String     @id
+  warehouseId String
+  userId      String
+  permission  String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime
+  users       users      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warehouses  warehouses @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, userId, permission])
+  @@index([warehouseId])
+  @@index([userId])
+}
+
+model inventory_transfers {
+  id              String                     @id
+  organizationId  String
+  transferNumber  String                     @unique
+  fromWarehouseId String
+  toWarehouseId   String
+  status          String                     @default("draft")
+  transferDate    DateTime
+  expectedDate    DateTime?
+  completedDate   DateTime?
+  notes           String?                    @db.Text
+  totalValue      Decimal                    @db.Decimal(12, 2)
+  journalId       String?                    @unique
+  createdBy       String
+  approvedBy      String?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime
+  transfer_items  inventory_transfer_items[]
+  from_warehouse  warehouses                 @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  journals        journals?                  @relation(fields: [journalId], references: [id])
+  organizations   organizations              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  to_warehouse    warehouses                 @relation("TransferTo", fields: [toWarehouseId], references: [id])
+
+  @@index([organizationId])
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+  @@index([status])
+  @@index([transferDate])
+}
+
+model inventory_transfer_items {
+  id         String              @id
+  transferId String
+  itemId     String
+  quantity   Decimal             @db.Decimal(12, 4)
+  unitCost   Decimal             @db.Decimal(12, 4)
+  totalValue Decimal             @db.Decimal(12, 2)
+  notes      String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime
+  products   products            @relation(fields: [itemId], references: [id])
+  transfers  inventory_transfers @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([transferId])
+  @@index([itemId])
+}
+
+model transfer_number_sequence {
+  id             Int      @id @default(autoincrement())
+  organizationId String
+  year           Int
+  lastNumber     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+
+  @@unique([organizationId, year])
+}
+
+model idempotency_keys {
+  id              String   @id
+  organization_id String
+  endpoint        String
+  idempotency_key String
+  request_hash    String
+  response_data   Json?
+  status          String   @default("processing")
+  created_at      DateTime @default(now())
+  expires_at      DateTime
+
+  @@unique([organization_id, endpoint, idempotency_key], name: "idempotency_keys_org_endpoint_key_unique")
+  @@index([organization_id])
+  @@index([expires_at])
+}
+
+model reconciliation_runs {
+  id                       String                     @id
+  organization_id          String
+  run_date                 DateTime
+  run_type                 String                     @default("daily")
+  status                   String                     @default("running")
+  trial_balance_status     String?
+  inventory_status         String?
+  ar_ap_status             String?
+  total_debits             Decimal?                   @db.Decimal(15, 2)
+  total_credits            Decimal?                   @db.Decimal(15, 2)
+  balance_difference       Decimal?                   @db.Decimal(15, 2)
+  inventory_gl_value       Decimal?                   @db.Decimal(15, 2)
+  inventory_layer_value    Decimal?                   @db.Decimal(15, 2)
+  inventory_variance       Decimal?                   @db.Decimal(15, 2)
+  error_message            String?                    @db.Text
+  started_at               DateTime                   @default(now())
+  completed_at             DateTime?
+  created_by               String?
+  reconciliation_variances reconciliation_variances[]
+
+  @@index([organization_id])
+  @@index([run_date])
+  @@index([status])
+}
+
+model reconciliation_variances {
+  id                    String              @id
+  reconciliation_run_id String
+  variance_type         String
+  account_id            String?
+  item_id               String?
+  warehouse_id          String?
+  description           String              @db.Text
+  expected_value        Decimal?            @db.Decimal(15, 2)
+  actual_value          Decimal?            @db.Decimal(15, 2)
+  variance_amount       Decimal             @db.Decimal(15, 2)
+  severity              String              @default("medium")
+  resolved              Boolean             @default(false)
+  resolved_at           DateTime?
+  resolved_by           String?
+  resolution_notes      String?             @db.Text
+  created_at            DateTime            @default(now())
+  reconciliation_run    reconciliation_runs @relation(fields: [reconciliation_run_id], references: [id], onDelete: Cascade)
+
+  @@index([reconciliation_run_id])
+  @@index([variance_type])
+  @@index([severity])
+  @@index([resolved])
+}
+
+model organization_profiles {
+  id                           String   @id
+  organization_id              String   @unique
+  fiscal_year_start_month      Int      @default(1)
+  fiscal_year_start_day        Int      @default(1)
+  report_basis                 String   @default("accrual")
+  base_currency                String   @default("MMK")
+  timezone                     String   @default("Asia/Yangon")
+  date_format                  String   @default("DD/MM/YYYY")
+  allow_negative_inventory     Boolean  @default(false)
+  auto_close_periods           Boolean  @default(false)
+  retained_earnings_account_id String?
+  created_at                   DateTime @default(now())
+  updated_at                   DateTime @updatedAt
+  created_by                   String?
+  updated_by                   String?
+
+  @@index([fiscal_year_start_month, fiscal_year_start_day])
+}
+
+model accounting_periods {
+  id              String    @id
+  organization_id String
+  fiscal_year     Int
+  period_number   Int
+  period_name     String
+  start_date      DateTime  @db.Date
+  end_date        DateTime  @db.Date
+  status          String    @default("open")
+  closed_at       DateTime?
+  closed_by       String?
+  reopened_at     DateTime?
+  reopened_by     String?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  @@unique([organization_id, fiscal_year, period_number])
+  @@index([organization_id])
+  @@index([fiscal_year])
+  @@index([status])
+  @@index([start_date, end_date])
+}
+
+model year_end_closing_runs {
+  id                           String    @id
+  organization_id              String
+  fiscal_year                  Int
+  closing_date                 DateTime  @db.Date
+  status                       String    @default("draft")
+  closing_journal_id           String?
+  oa_closing_transaction_id    String?
+  total_income                 Decimal   @default(0.00) @db.Decimal(15, 2)
+  total_expenses               Decimal   @default(0.00) @db.Decimal(15, 2)
+  net_income                   Decimal   @default(0.00) @db.Decimal(15, 2)
+  retained_earnings_account_id String
+  error_message                String?   @db.Text
+  started_at                   DateTime?
+  completed_at                 DateTime?
+  created_at                   DateTime  @default(now())
+  updated_at                   DateTime  @updatedAt
+  created_by                   String
+
+  @@unique([organization_id, fiscal_year])
+  @@index([organization_id])
+  @@index([fiscal_year])
+  @@index([status])
+}

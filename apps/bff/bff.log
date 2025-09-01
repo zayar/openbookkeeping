@@ -1,0 +1,18 @@
+
+> @openaccounting/bff@1.0.0 dev
+> tsx watch src/server.ts
+
+[32minfo[39m: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-08-30T05:21:27.090Z","user":"cashflowadmin"}
+info: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-08-30T05:21:27.090Z","user":"cashflowadmin"}
+[32minfo[39m: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:27.189Z"}
+info: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:27.189Z"}
+prisma:info Starting a mysql pool with 25 connections.
+prisma:query SELECT 1 as test
+[32minfo[39m: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.996Z"}
+info: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.996Z"}
+[32minfo[39m: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.996Z"}
+info: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.996Z"}
+[32minfo[39m: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.997Z"}
+info: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.997Z"}
+[31merror[39m: Uncaught Exception: listen EADDRINUSE: address already in use :::3001 {"address":"::","code":"EADDRINUSE","errno":-48,"port":3001,"service":"openaccounting-bff","stack":"Error: listen EADDRINUSE: address already in use :::3001\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Function.listen (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express/lib/application.js:635:24)\n    at startServer (/Users/zayarmin/Development/openaccounting/apps/bff/src/server.ts:304:24)","syscall":"listen","timestamp":"2025-08-30T05:21:29.000Z"}
+error: Uncaught Exception: listen EADDRINUSE: address already in use :::3001 {"address":"::","code":"EADDRINUSE","errno":-48,"port":3001,"service":"openaccounting-bff","stack":"Error: listen EADDRINUSE: address already in use :::3001\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Function.listen (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express/lib/application.js:635:24)\n    at startServer (/Users/zayarmin/Development/openaccounting/apps/bff/src/server.ts:304:24)","syscall":"listen","timestamp":"2025-08-30T05:21:29.000Z"}
