@@ -4,10 +4,10 @@ import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import cookieParser from 'cookie-parser'
 import session from 'express-session'
-import { config } from 'dotenv'
+import { loadConfig, parseAllowedOrigins } from '@openaccounting/config/src/loadConfig'
 
-// Load environment variables
-config()
+// Load environment variables (validated)
+const appConfig = loadConfig()
 
 import { logger } from './utils/logger'
 import { initializeDatabase, HealthService } from './services/database.cloud-sql-only'
@@ -51,11 +51,10 @@ app.use(helmet({
 }))
 
 // CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+const allowedOrigins = parseAllowedOrigins(appConfig.ALLOWED_ORIGINS) || [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:3002',
-  process.env.FRONTEND_URL
 ].filter(Boolean)
 
 app.use(cors({
