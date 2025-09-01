@@ -1,0 +1,56 @@
+openapi: 3.0.3
+info:
+  title: OpenAccounting BFF API
+  version: 0.1.0
+servers:
+  - url: /api/v1
+paths:
+  /customers:
+    get:
+      summary: List customers
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create customer
+      responses:
+        '201':
+          description: Created
+  /items:
+    get:
+      summary: List items
+      responses:
+        '200': { description: OK }
+  /invoices:
+    get:
+      summary: List invoices
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create invoice
+      responses:
+        '201': { description: Created }
+  /payments:
+    post:
+      summary: Record payment
+      responses:
+        '201': { description: Created }
+  /warehouses:
+    get:
+      summary: List warehouses
+      responses:
+        '200': { description: OK }
+  /banks:
+    get:
+      summary: List bank accounts
+      responses:
+        '200': { description: OK }
+  /health/live:
+    get:
+      responses:
+        '200': { description: Alive }
+  /health/ready:
+    get:
+      responses:
+        '200': { description: Ready }
+
