@@ -3,6 +3,7 @@ import { requireJwtAuth } from '../middleware/jwtAuth'
 import { requireIdempotency } from '../middleware/idempotency'
 import { prisma } from '../services/database.cloud-sql-only'
 import { checkLedgerBalance } from '../utils/ledger'
+import { PaymentCreateRequest, PaymentResponse } from '../schemas/invoices'
 
 const router = express.Router()
 
@@ -11,6 +12,9 @@ router.post('/', requireJwtAuth, requireIdempotency, async (req, res) => {
   const orgId = req.auth!.organizationId
   const { invoiceId, amount, depositTo } = req.body
   try {
+    const parsed = PaymentCreateRequest.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ success: false, error: 'Invalid payment payload' })
+    const { invoiceId, amount, depositTo } = parsed.data
     const output = await prisma.$transaction(async (tx) => {
       const invoice = await tx.invoices.findFirst({ where: { id: invoiceId, organizationId: orgId } })
       if (!invoice) throw new Error('Invoice not found')
@@ -55,8 +59,10 @@ router.post('/', requireJwtAuth, requireIdempotency, async (req, res) => {
 
       return { payment, invoice: updated, journalId: journal.id }
     })
-
-    res.status(201).json({ success: true, data: output })
+    const payload = { success: true as const, data: output }
+    const valid = PaymentResponse.safeParse(payload)
+    if (!valid.success) return res.status(500).json({ success: false, error: 'Response schema validation failed' })
+    res.status(201).json(valid.data)
   } catch (error) {
     res.status(409).json({ success: false, error: 'Failed to record payment' })
   }

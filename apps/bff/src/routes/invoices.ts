@@ -3,6 +3,7 @@ import { requireJwtAuth } from '../middleware/jwtAuth'
 import { requireIdempotency } from '../middleware/idempotency'
 import { prisma } from '../services/database.cloud-sql-only'
 import { checkLedgerBalance } from '../utils/ledger'
+import { InvoiceCreateRequest, InvoiceResponse, InvoiceConfirmResponse } from '../schemas/invoices'
 
 const router = express.Router()
 
@@ -12,6 +13,11 @@ router.post('/', requireJwtAuth, requireIdempotency, async (req, res) => {
   const { invoiceNumber, customerId, items = [], issueDate, dueDate, currency = 'MMK', branchId, salespersonId, taxes = [] } = req.body
 
   try {
+    const parsed = InvoiceCreateRequest.safeParse(req.body)
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: 'Invalid invoice payload' })
+    }
+    const { invoiceNumber, customerId, items, issueDate, dueDate, currency = 'MMK', branchId, salespersonId } = parsed.data
     const result = await prisma.$transaction(async (tx) => {
       // Create invoice row
       const invoice = await tx.invoices.create({
@@ -73,8 +79,10 @@ router.post('/', requireJwtAuth, requireIdempotency, async (req, res) => {
 
       return updated
     })
-
-    res.status(201).json({ success: true, data: result })
+    const payload = { success: true as const, data: result }
+    const valid = InvoiceResponse.safeParse(payload)
+    if (!valid.success) return res.status(500).json({ success: false, error: 'Response schema validation failed' })
+    res.status(201).json(valid.data)
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to create invoice' })
   }
@@ -125,8 +133,10 @@ router.post('/:id/confirm', requireJwtAuth, requireIdempotency, async (req, res)
       const updated = await tx.invoices.update({ where: { id }, data: { journalId: journal.id, status: 'confirmed' } })
       return { invoice: updated, journalId: journal.id }
     })
-
-    res.json({ success: true, data: output })
+    const payload = { success: true as const, data: output }
+    const valid = InvoiceConfirmResponse.safeParse(payload)
+    if (!valid.success) return res.status(500).json({ success: false, error: 'Response schema validation failed' })
+    res.json(valid.data)
   } catch (error) {
     res.status(409).json({ success: false, error: 'Failed to confirm invoice' })
   }
