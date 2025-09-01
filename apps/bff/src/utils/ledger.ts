@@ -1,11 +1,11 @@
 import { PrismaClient } from '@prisma/client'
 
 export async function checkLedgerBalance(prisma: PrismaClient, journalId: string) {
-  const journal = await prisma.journals.findUnique({ where: { id: journalId } })
-  if (!journal) {
-    return { ok: false, error: 'Journal not found' }
-  }
-  const isZero = journal.totalDebit.toString() === journal.totalCredit.toString()
-  return { ok: isZero, error: isZero ? undefined : 'Journal batch not balanced' }
+  const entries = await prisma.journal_entries.findMany({ where: { journalId } })
+  if (entries.length === 0) return { ok: false, error: 'No journal entries' }
+  const totalDebit = entries.reduce((s, e) => s + Number(e.debitAmount), 0)
+  const totalCredit = entries.reduce((s, e) => s + Number(e.creditAmount), 0)
+  const isZero = Math.abs(totalDebit - totalCredit) < 0.0001
+  return { ok: isZero, error: isZero ? undefined : `Out of balance (DR ${totalDebit} != CR ${totalCredit})` }
 }
 
