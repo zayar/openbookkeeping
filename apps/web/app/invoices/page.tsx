@@ -19,7 +19,7 @@ type Invoice = {
   totalAmount: string
   balanceDue: string
   paidAmount: string
-  customers: {
+  customers?: {
     id: string
     name: string
     email: string
@@ -214,8 +214,8 @@ export default function InvoicesPage() {
                         <div className="font-medium">{invoice.invoiceNumber}</div>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-medium">{invoice.customers.name}</div>
-                        <div className="text-sm text-gray-500">{invoice.customers.email}</div>
+                        <div className="font-medium">{invoice.customers?.name || 'Unknown Customer'}</div>
+                        <div className="text-sm text-gray-500">{invoice.customers?.email || ''}</div>
                       </td>
                       <td className="py-3 px-4 text-sm">
                         {formatDate(invoice.issueDate)}

@@ -17,6 +17,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@openaccounting/config": "file:../../packages/config",
     "@prisma/client": "^5.7.1",
     "bcryptjs": "^2.4.3",
     "connect-redis": "^7.1.0",

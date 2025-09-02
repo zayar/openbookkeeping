@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { v4 as uuidv4 } from 'uuid'
 import { logger } from '../utils/logger'
 import { oaClient } from './oaClient'
 
@@ -35,6 +36,72 @@ class CloudSQLPrismaService {
             url: databaseUrl
           }
         }
+      })
+
+      // Auto-generate String IDs for models with String @id when missing
+      const modelsWithStringId = new Set([
+        'accounts','api_keys','audit_logs','bank_accounts','bank_transactions','cache_entries','customers',
+        'inventory_layers','inventory_movements','inventory_opening_balances','inventory_transfer_items',
+        'inventory_transfers','invoice_items','invoice_payments','invoices','journal_entries','journals',
+        'organization_invitations','organization_members','organization_profiles','organization_settings',
+        'organizations','products','salespersons','sessions','sync_status','taxes','user_preferences','users',
+        'vendors','warehouses','warehouse_permissions','year_end_closing_runs','reconciliation_runs',
+        'reconciliation_variances','idempotency_keys'
+      ])
+
+      CloudSQLPrismaService.instance.$use(async (params, next) => {
+        const { model, action } = params
+        if (!model || !modelsWithStringId.has(model)) {
+          return next(params)
+        }
+
+        // create
+        if (action === 'create') {
+          if (!params.args?.data?.id) {
+            params.args.data.id = uuidv4()
+          }
+          if (params.args?.data && params.args.data.updatedAt === undefined) {
+            params.args.data.updatedAt = new Date()
+          }
+        }
+
+        // createMany
+        if (action === 'createMany' && Array.isArray(params.args?.data)) {
+          params.args.data = params.args.data.map((row: any) => ({
+            id: row.id || uuidv4(),
+            updatedAt: row.updatedAt ?? new Date(),
+            ...row,
+          }))
+        }
+
+        // upsert (ensure create has id)
+        if (action === 'upsert') {
+          if (!params.args?.create?.id) {
+            params.args.create.id = uuidv4()
+          }
+          if (params.args?.create && params.args.create.updatedAt === undefined) {
+            params.args.create.updatedAt = new Date()
+          }
+          if (params.args?.update) {
+            params.args.update.updatedAt = new Date()
+          }
+        }
+
+        // update
+        if (action === 'update') {
+          if (params.args?.data) {
+            params.args.data.updatedAt = new Date()
+          }
+        }
+
+        // updateMany
+        if (action === 'updateMany') {
+          if (params.args?.data) {
+            params.args.data.updatedAt = new Date()
+          }
+        }
+
+        return next(params)
       })
 
       // Handle graceful shutdown

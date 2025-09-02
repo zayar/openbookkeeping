@@ -2,17 +2,361 @@
 > @openaccounting/bff@1.0.0 dev
 > tsx watch src/server.ts
 
-[32minfo[39m: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-08-30T05:21:27.090Z","user":"cashflowadmin"}
-info: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-08-30T05:21:27.090Z","user":"cashflowadmin"}
-[32minfo[39m: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:27.189Z"}
-info: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:27.189Z"}
+[32minfo[39m: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T03:33:32.544Z","user":"cashflowadmin"}
+info: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T03:33:32.544Z","user":"cashflowadmin"}
+Google OAuth disabled - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET
+[32minfo[39m: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:32.659Z"}
+info: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:32.659Z"}
 prisma:info Starting a mysql pool with 25 connections.
 prisma:query SELECT 1 as test
-[32minfo[39m: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.996Z"}
-info: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.996Z"}
-[32minfo[39m: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.996Z"}
-info: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.996Z"}
-[32minfo[39m: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.997Z"}
-info: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-08-30T05:21:28.997Z"}
-[31merror[39m: Uncaught Exception: listen EADDRINUSE: address already in use :::3001 {"address":"::","code":"EADDRINUSE","errno":-48,"port":3001,"service":"openaccounting-bff","stack":"Error: listen EADDRINUSE: address already in use :::3001\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Function.listen (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express/lib/application.js:635:24)\n    at startServer (/Users/zayarmin/Development/openaccounting/apps/bff/src/server.ts:304:24)","syscall":"listen","timestamp":"2025-08-30T05:21:29.000Z"}
-error: Uncaught Exception: listen EADDRINUSE: address already in use :::3001 {"address":"::","code":"EADDRINUSE","errno":-48,"port":3001,"service":"openaccounting-bff","stack":"Error: listen EADDRINUSE: address already in use :::3001\n    at Server.setupListenHandle [as _listen2] (node:net:1939:16)\n    at listenInCluster (node:net:1996:12)\n    at Server.listen (node:net:2101:7)\n    at Function.listen (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express/lib/application.js:635:24)\n    at startServer (/Users/zayarmin/Development/openaccounting/apps/bff/src/server.ts:304:24)","syscall":"listen","timestamp":"2025-08-30T05:21:29.000Z"}
+[32minfo[39m: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.143Z"}
+info: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.143Z"}
+[32minfo[39m: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.144Z"}
+info: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.144Z"}
+[32minfo[39m: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.144Z"}
+info: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.144Z"}
+[32minfo[39m: 🚀 BFF Server running on port 3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.146Z"}
+info: 🚀 BFF Server running on port 3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.146Z"}
+[32minfo[39m: 📝 Environment: development {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.146Z"}
+info: 📝 Environment: development {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.146Z"}
+[32minfo[39m: 🔐 CORS origins: http://localhost:3000, http://localhost:3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.146Z"}
+info: 🔐 CORS origins: http://localhost:3000, http://localhost:3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.146Z"}
+[32minfo[39m: 💾 Database: Connected {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.147Z"}
+info: 💾 Database: Connected {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.147Z"}
+[32minfo[39m: 🔍 Health check: http://localhost:3001/health {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.147Z"}
+info: 🔍 Health check: http://localhost:3001/health {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:34.147Z"}
+prisma:query SELECT 1
+[32minfo[39m: ✅ Cloud SQL health check passed {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:46.193Z"}
+info: ✅ Cloud SQL health check passed {"service":"openaccounting-bff","timestamp":"2025-09-02T03:33:46.193Z"}
+[31merror[39m: OA API Error: GET http://localhost:8080/health request to http://localhost:8080/health failed, reason:  {"code":"ECONNREFUSED","errno":"ECONNREFUSED","service":"openaccounting-bff","stack":"FetchError: request to http://localhost:8080/health failed, reason: \n    at ClientRequest.<anonymous> (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/node-fetch/src/index.js:108:11)\n    at ClientRequest.emit (node:events:518:28)\n    at emitErrorEvent (node:_http_client:104:11)\n    at Socket.socketErrorListener (node:_http_client:518:5)\n    at Socket.emit (node:events:518:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)","timestamp":"2025-09-02T03:33:46.208Z","type":"system"}
+error: OA API Error: GET http://localhost:8080/health request to http://localhost:8080/health failed, reason:  {"code":"ECONNREFUSED","errno":"ECONNREFUSED","service":"openaccounting-bff","stack":"FetchError: request to http://localhost:8080/health failed, reason: \n    at ClientRequest.<anonymous> (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/node-fetch/src/index.js:108:11)\n    at ClientRequest.emit (node:events:518:28)\n    at emitErrorEvent (node:_http_client:104:11)\n    at Socket.socketErrorListener (node:_http_client:518:5)\n    at Socket.emit (node:events:518:28)\n    at emitErrorNT (node:internal/streams/destroy:170:8)\n    at emitErrorCloseNT (node:internal/streams/destroy:129:3)\n    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)","timestamp":"2025-09-02T03:33:46.208Z","type":"system"}
+[33mwarn[39m: GET /health {"duration":"505ms","ip":"::1","service":"openaccounting-bff","status":503,"timestamp":"2025-09-02T03:33:46.210Z","userAgent":"curl/8.7.1"}
+warn: GET /health {"duration":"505ms","ip":"::1","service":"openaccounting-bff","status":503,"timestamp":"2025-09-02T03:33:46.210Z","userAgent":"curl/8.7.1"}
+ValidationError: The 'X-Forwarded-For' header is set but the Express 'trust proxy' setting is false (default). This could indicate a misconfiguration which would prevent express-rate-limit from accurately identifying users. See https://express-rate-limit.github.io/ERR_ERL_UNEXPECTED_X_FORWARDED_FOR/ for more information.
+    at Object.xForwardedForHeader (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:185:13)
+    at wrappedValidations.<computed> [as xForwardedForHeader] (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:397:22)
+    at Object.keyGenerator (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:658:20)
+    at /Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:710:32
+    at async /Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:691:5 {
+  code: 'ERR_ERL_UNEXPECTED_X_FORWARDED_FOR',
+  help: 'https://express-rate-limit.github.io/ERR_ERL_UNEXPECTED_X_FORWARDED_FOR/'
+}
+ValidationError: The 'X-Forwarded-For' header is set but the Express 'trust proxy' setting is false (default). This could indicate a misconfiguration which would prevent express-rate-limit from accurately identifying users. See https://express-rate-limit.github.io/ERR_ERL_UNEXPECTED_X_FORWARDED_FOR/ for more information.
+    at Object.xForwardedForHeader (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:185:13)
+    at wrappedValidations.<computed> [as xForwardedForHeader] (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:397:22)
+    at Object.keyGenerator (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:658:20)
+    at /Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:710:32
+    at async /Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:691:5 {
+  code: 'ERR_ERL_UNEXPECTED_X_FORWARDED_FOR',
+  help: 'https://express-rate-limit.github.io/ERR_ERL_UNEXPECTED_X_FORWARDED_FOR/'
+}
+prisma:info Starting a mysql pool with 25 connections.
+prisma:error 
+Invalid `prisma.users.findUnique()` invocation in
+/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:37
+
+  247 const { prisma } = await import('../services/database')
+  248 
+  249 // Find user with password hash
+→ 250 const user = await prisma.users.findUnique(
+Can't reach database server at `34.173.128.29:3306`
+
+Please make sure your database server is running at `34.173.128.29:3306`.
+[31merror[39m: Login error: 
+Invalid `prisma.users.findUnique()` invocation in
+/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:37
+
+  247 const { prisma } = await import('../services/database')
+  248 
+  249 // Find user with password hash
+→ 250 const user = await prisma.users.findUnique(
+Can't reach database server at `34.173.128.29:3306`
+
+Please make sure your database server is running at `34.173.128.29:3306`. {"clientVersion":"5.22.0","name":"PrismaClientInitializationError","service":"openaccounting-bff","stack":"PrismaClientInitializationError: \nInvalid `prisma.users.findUnique()` invocation in\n/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:37\n\n  247 const { prisma } = await import('../services/database')\n  248 \n  249 // Find user with password hash\n→ 250 const user = await prisma.users.findUnique(\nCan't reach database server at `34.173.128.29:3306`\n\nPlease make sure your database server is running at `34.173.128.29:3306`.\n    at $n.handleRequestError (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:7615)\n    at $n.handleAndLogRequestError (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async <anonymous> (/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:18)","timestamp":"2025-09-02T04:57:05.301Z"}
+error: Login error: 
+Invalid `prisma.users.findUnique()` invocation in
+/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:37
+
+  247 const { prisma } = await import('../services/database')
+  248 
+  249 // Find user with password hash
+→ 250 const user = await prisma.users.findUnique(
+Can't reach database server at `34.173.128.29:3306`
+
+Please make sure your database server is running at `34.173.128.29:3306`. {"clientVersion":"5.22.0","name":"PrismaClientInitializationError","service":"openaccounting-bff","stack":"PrismaClientInitializationError: \nInvalid `prisma.users.findUnique()` invocation in\n/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:37\n\n  247 const { prisma } = await import('../services/database')\n  248 \n  249 // Find user with password hash\n→ 250 const user = await prisma.users.findUnique(\nCan't reach database server at `34.173.128.29:3306`\n\nPlease make sure your database server is running at `34.173.128.29:3306`.\n    at $n.handleRequestError (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:7615)\n    at $n.handleAndLogRequestError (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async <anonymous> (/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:18)","timestamp":"2025-09-02T04:57:05.301Z"}
+[33mwarn[39m: POST /login {"duration":"5025ms","ip":"::1","service":"openaccounting-bff","status":500,"timestamp":"2025-09-02T04:57:05.302Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+warn: POST /login {"duration":"5025ms","ip":"::1","service":"openaccounting-bff","status":500,"timestamp":"2025-09-02T04:57:05.302Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:info Starting a mysql pool with 25 connections.
+prisma:error 
+Invalid `prisma.users.findUnique()` invocation in
+/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:37
+
+  247 const { prisma } = await import('../services/database')
+  248 
+  249 // Find user with password hash
+→ 250 const user = await prisma.users.findUnique(
+Can't reach database server at `34.173.128.29:3306`
+
+Please make sure your database server is running at `34.173.128.29:3306`.
+[31merror[39m: Login error: 
+Invalid `prisma.users.findUnique()` invocation in
+/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:37
+
+  247 const { prisma } = await import('../services/database')
+  248 
+  249 // Find user with password hash
+→ 250 const user = await prisma.users.findUnique(
+Can't reach database server at `34.173.128.29:3306`
+
+Please make sure your database server is running at `34.173.128.29:3306`. {"clientVersion":"5.22.0","name":"PrismaClientInitializationError","service":"openaccounting-bff","stack":"PrismaClientInitializationError: \nInvalid `prisma.users.findUnique()` invocation in\n/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:37\n\n  247 const { prisma } = await import('../services/database')\n  248 \n  249 // Find user with password hash\n→ 250 const user = await prisma.users.findUnique(\nCan't reach database server at `34.173.128.29:3306`\n\nPlease make sure your database server is running at `34.173.128.29:3306`.\n    at $n.handleRequestError (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:7615)\n    at $n.handleAndLogRequestError (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async <anonymous> (/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:18)","timestamp":"2025-09-02T04:57:16.699Z"}
+error: Login error: 
+Invalid `prisma.users.findUnique()` invocation in
+/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:37
+
+  247 const { prisma } = await import('../services/database')
+  248 
+  249 // Find user with password hash
+→ 250 const user = await prisma.users.findUnique(
+Can't reach database server at `34.173.128.29:3306`
+
+Please make sure your database server is running at `34.173.128.29:3306`. {"clientVersion":"5.22.0","name":"PrismaClientInitializationError","service":"openaccounting-bff","stack":"PrismaClientInitializationError: \nInvalid `prisma.users.findUnique()` invocation in\n/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:37\n\n  247 const { prisma } = await import('../services/database')\n  248 \n  249 // Find user with password hash\n→ 250 const user = await prisma.users.findUnique(\nCan't reach database server at `34.173.128.29:3306`\n\nPlease make sure your database server is running at `34.173.128.29:3306`.\n    at $n.handleRequestError (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:7615)\n    at $n.handleAndLogRequestError (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:6623)\n    at $n.request (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:121:6307)\n    at async l (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/@prisma/client/runtime/library.js:130:9633)\n    at async <anonymous> (/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/auth.ts:250:18)","timestamp":"2025-09-02T04:57:16.699Z"}
+[33mwarn[39m: POST /login {"duration":"5008ms","ip":"::1","service":"openaccounting-bff","status":500,"timestamp":"2025-09-02T04:57:16.700Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+warn: POST /login {"duration":"5008ms","ip":"::1","service":"openaccounting-bff","status":500,"timestamp":"2025-09-02T04:57:16.700Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:info Starting a mysql pool with 25 connections.
+prisma:query SELECT `cashflowdb`.`users`.`id`, `cashflowdb`.`users`.`email`, `cashflowdb`.`users`.`name`, `cashflowdb`.`users`.`avatar`, `cashflowdb`.`users`.`emailVerified`, `cashflowdb`.`users`.`googleId`, `cashflowdb`.`users`.`defaultCurrency`, `cashflowdb`.`users`.`timezone`, `cashflowdb`.`users`.`locale`, `cashflowdb`.`users`.`createdAt`, `cashflowdb`.`users`.`updatedAt`, `cashflowdb`.`users`.`lastLoginAt` FROM `cashflowdb`.`users` WHERE (`cashflowdb`.`users`.`email` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `cashflowdb`.`accounts`.`id`, `cashflowdb`.`accounts`.`userId`, `cashflowdb`.`accounts`.`type`, `cashflowdb`.`accounts`.`provider`, `cashflowdb`.`accounts`.`providerAccountId`, `cashflowdb`.`accounts`.`refresh_token`, `cashflowdb`.`accounts`.`access_token`, `cashflowdb`.`accounts`.`expires_at`, `cashflowdb`.`accounts`.`token_type`, `cashflowdb`.`accounts`.`scope`, `cashflowdb`.`accounts`.`id_token`, `cashflowdb`.`accounts`.`session_state` FROM `cashflowdb`.`accounts` WHERE (`cashflowdb`.`accounts`.`provider` = ? AND `cashflowdb`.`accounts`.`userId` IN (?))
+prisma:query BEGIN
+prisma:query SELECT `cashflowdb`.`users`.`id` FROM `cashflowdb`.`users` WHERE (`cashflowdb`.`users`.`id` = ? AND 1=1)
+prisma:query UPDATE `cashflowdb`.`users` SET `lastLoginAt` = ? WHERE (`cashflowdb`.`users`.`id` IN (?) AND (`cashflowdb`.`users`.`id` = ? AND 1=1))
+prisma:query SELECT `cashflowdb`.`users`.`id`, `cashflowdb`.`users`.`email`, `cashflowdb`.`users`.`name`, `cashflowdb`.`users`.`avatar`, `cashflowdb`.`users`.`emailVerified`, `cashflowdb`.`users`.`googleId`, `cashflowdb`.`users`.`defaultCurrency`, `cashflowdb`.`users`.`timezone`, `cashflowdb`.`users`.`locale`, `cashflowdb`.`users`.`createdAt`, `cashflowdb`.`users`.`updatedAt`, `cashflowdb`.`users`.`lastLoginAt` FROM `cashflowdb`.`users` WHERE `cashflowdb`.`users`.`id` = ? LIMIT ? OFFSET ?
+prisma:query COMMIT
+prisma:query SELECT `cashflowdb`.`organization_members`.`id`, `cashflowdb`.`organization_members`.`organizationId`, `cashflowdb`.`organization_members`.`userId`, `cashflowdb`.`organization_members`.`role`, `cashflowdb`.`organization_members`.`permissions`, `cashflowdb`.`organization_members`.`status`, `cashflowdb`.`organization_members`.`joinedAt`, `cashflowdb`.`organization_members`.`updatedAt` FROM `cashflowdb`.`organization_members` WHERE `cashflowdb`.`organization_members`.`userId` = ?
+prisma:query SELECT `cashflowdb`.`organizations`.`id`, `cashflowdb`.`organizations`.`name`, `cashflowdb`.`organizations`.`slug`, `cashflowdb`.`organizations`.`description`, `cashflowdb`.`organizations`.`logo`, `cashflowdb`.`organizations`.`oaOrganizationId`, `cashflowdb`.`organizations`.`baseCurrency`, `cashflowdb`.`organizations`.`fiscalYearStart`, `cashflowdb`.`organizations`.`timezone`, `cashflowdb`.`organizations`.`address`, `cashflowdb`.`organizations`.`city`, `cashflowdb`.`organizations`.`state`, `cashflowdb`.`organizations`.`country`, `cashflowdb`.`organizations`.`postalCode`, `cashflowdb`.`organizations`.`phone`, `cashflowdb`.`organizations`.`email`, `cashflowdb`.`organizations`.`website`, `cashflowdb`.`organizations`.`taxNumber`, `cashflowdb`.`organizations`.`registrationNumber`, `cashflowdb`.`organizations`.`subscriptionStatus`, `cashflowdb`.`organizations`.`subscriptionPlan`, `cashflowdb`.`organizations`.`billingCycle`, `cashflowdb`.`organizations`.`multiCurrency`, `cashflowdb`.`organizations`.`advancedReporting`, `cashflowdb`.`organizations`.`apiAccess`, `cashflowdb`.`organizations`.`createdAt`, `cashflowdb`.`organizations`.`updatedAt` FROM `cashflowdb`.`organizations` WHERE `cashflowdb`.`organizations`.`id` IN (?)
+[32minfo[39m: User admin@default.com logged in successfully {"service":"openaccounting-bff","timestamp":"2025-09-02T04:57:51.145Z"}
+info: User admin@default.com logged in successfully {"service":"openaccounting-bff","timestamp":"2025-09-02T04:57:51.145Z"}
+[32minfo[39m: POST /login {"duration":"7346ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:57:51.148Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: POST /login {"duration":"7346ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:57:51.148Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT COUNT(*) FROM (SELECT `cashflowdb`.`ledger_accounts`.`id` FROM `cashflowdb`.`ledger_accounts` WHERE `cashflowdb`.`ledger_accounts`.`organizationId` = ?) AS `sub`
+[32minfo[39m: GET / {"duration":"594ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:57:52.059Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"594ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:57:52.059Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`customers`.`id`, `cashflowdb`.`customers`.`organizationId`, `cashflowdb`.`customers`.`oaCustomerId`, `cashflowdb`.`customers`.`name`, `cashflowdb`.`customers`.`displayName`, `cashflowdb`.`customers`.`email`, `cashflowdb`.`customers`.`phone`, `cashflowdb`.`customers`.`mobile`, `cashflowdb`.`customers`.`customerType`, `cashflowdb`.`customers`.`salutation`, `cashflowdb`.`customers`.`firstName`, `cashflowdb`.`customers`.`lastName`, `cashflowdb`.`customers`.`companyName`, `cashflowdb`.`customers`.`billingAddress`, `cashflowdb`.`customers`.`shippingAddress`, `cashflowdb`.`customers`.`industry`, `cashflowdb`.`customers`.`source`, `cashflowdb`.`customers`.`priority`, `cashflowdb`.`customers`.`companyId`, `cashflowdb`.`customers`.`currency`, `cashflowdb`.`customers`.`taxRate`, `cashflowdb`.`customers`.`paymentTerms`, `cashflowdb`.`customers`.`openingBalance`, `cashflowdb`.`customers`.`openingBalanceAccount`, `cashflowdb`.`customers`.`enablePortal`, `cashflowdb`.`customers`.`portalLanguage`, `cashflowdb`.`customers`.`tags`, `cashflowdb`.`customers`.`notes`, `cashflowdb`.`customers`.`remarks`, `cashflowdb`.`customers`.`isActive`, `cashflowdb`.`customers`.`createdAt`, `cashflowdb`.`customers`.`updatedAt`, `cashflowdb`.`customers`.`lastContactAt` FROM `cashflowdb`.`customers` WHERE `cashflowdb`.`customers`.`organizationId` = ? ORDER BY `cashflowdb`.`customers`.`createdAt` DESC
+[32minfo[39m: GET / {"duration":"583ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:57:57.892Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"583ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:57:57.892Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT 1
+prisma:query BEGIN
+prisma:query INSERT INTO `cashflowdb`.`customers` (`id`,`organizationId`,`name`,`displayName`,`email`,`phone`,`mobile`,`customerType`,`salutation`,`firstName`,`lastName`,`companyName`,`billingAddress`,`shippingAddress`,`industry`,`source`,`priority`,`companyId`,`currency`,`taxRate`,`paymentTerms`,`openingBalance`,`openingBalanceAccount`,`enablePortal`,`portalLanguage`,`tags`,`notes`,`remarks`,`isActive`,`createdAt`,`updatedAt`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+prisma:query SELECT `cashflowdb`.`customers`.`id`, `cashflowdb`.`customers`.`organizationId`, `cashflowdb`.`customers`.`oaCustomerId`, `cashflowdb`.`customers`.`name`, `cashflowdb`.`customers`.`displayName`, `cashflowdb`.`customers`.`email`, `cashflowdb`.`customers`.`phone`, `cashflowdb`.`customers`.`mobile`, `cashflowdb`.`customers`.`customerType`, `cashflowdb`.`customers`.`salutation`, `cashflowdb`.`customers`.`firstName`, `cashflowdb`.`customers`.`lastName`, `cashflowdb`.`customers`.`companyName`, `cashflowdb`.`customers`.`billingAddress`, `cashflowdb`.`customers`.`shippingAddress`, `cashflowdb`.`customers`.`industry`, `cashflowdb`.`customers`.`source`, `cashflowdb`.`customers`.`priority`, `cashflowdb`.`customers`.`companyId`, `cashflowdb`.`customers`.`currency`, `cashflowdb`.`customers`.`taxRate`, `cashflowdb`.`customers`.`paymentTerms`, `cashflowdb`.`customers`.`openingBalance`, `cashflowdb`.`customers`.`openingBalanceAccount`, `cashflowdb`.`customers`.`enablePortal`, `cashflowdb`.`customers`.`portalLanguage`, `cashflowdb`.`customers`.`tags`, `cashflowdb`.`customers`.`notes`, `cashflowdb`.`customers`.`remarks`, `cashflowdb`.`customers`.`isActive`, `cashflowdb`.`customers`.`createdAt`, `cashflowdb`.`customers`.`updatedAt`, `cashflowdb`.`customers`.`lastContactAt` FROM `cashflowdb`.`customers` WHERE `cashflowdb`.`customers`.`id` = ? LIMIT ? OFFSET ?
+prisma:query COMMIT
+[32minfo[39m: POST / {"duration":"2028ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:58:19.338Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: POST / {"duration":"2028ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:58:19.338Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`customers`.`id`, `cashflowdb`.`customers`.`organizationId`, `cashflowdb`.`customers`.`oaCustomerId`, `cashflowdb`.`customers`.`name`, `cashflowdb`.`customers`.`displayName`, `cashflowdb`.`customers`.`email`, `cashflowdb`.`customers`.`phone`, `cashflowdb`.`customers`.`mobile`, `cashflowdb`.`customers`.`customerType`, `cashflowdb`.`customers`.`salutation`, `cashflowdb`.`customers`.`firstName`, `cashflowdb`.`customers`.`lastName`, `cashflowdb`.`customers`.`companyName`, `cashflowdb`.`customers`.`billingAddress`, `cashflowdb`.`customers`.`shippingAddress`, `cashflowdb`.`customers`.`industry`, `cashflowdb`.`customers`.`source`, `cashflowdb`.`customers`.`priority`, `cashflowdb`.`customers`.`companyId`, `cashflowdb`.`customers`.`currency`, `cashflowdb`.`customers`.`taxRate`, `cashflowdb`.`customers`.`paymentTerms`, `cashflowdb`.`customers`.`openingBalance`, `cashflowdb`.`customers`.`openingBalanceAccount`, `cashflowdb`.`customers`.`enablePortal`, `cashflowdb`.`customers`.`portalLanguage`, `cashflowdb`.`customers`.`tags`, `cashflowdb`.`customers`.`notes`, `cashflowdb`.`customers`.`remarks`, `cashflowdb`.`customers`.`isActive`, `cashflowdb`.`customers`.`createdAt`, `cashflowdb`.`customers`.`updatedAt`, `cashflowdb`.`customers`.`lastContactAt` FROM `cashflowdb`.`customers` WHERE (`cashflowdb`.`customers`.`id` = ? AND `cashflowdb`.`customers`.`organizationId` = ?) LIMIT ? OFFSET ?
+[32minfo[39m: GET /cc0dccf2-c8d2-4b98-9191-0e2f37b191df {"duration":"576ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:58:20.308Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET /cc0dccf2-c8d2-4b98-9191-0e2f37b191df {"duration":"576ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:58:20.308Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`customers`.`id`, `cashflowdb`.`customers`.`organizationId`, `cashflowdb`.`customers`.`oaCustomerId`, `cashflowdb`.`customers`.`name`, `cashflowdb`.`customers`.`displayName`, `cashflowdb`.`customers`.`email`, `cashflowdb`.`customers`.`phone`, `cashflowdb`.`customers`.`mobile`, `cashflowdb`.`customers`.`customerType`, `cashflowdb`.`customers`.`salutation`, `cashflowdb`.`customers`.`firstName`, `cashflowdb`.`customers`.`lastName`, `cashflowdb`.`customers`.`companyName`, `cashflowdb`.`customers`.`billingAddress`, `cashflowdb`.`customers`.`shippingAddress`, `cashflowdb`.`customers`.`industry`, `cashflowdb`.`customers`.`source`, `cashflowdb`.`customers`.`priority`, `cashflowdb`.`customers`.`companyId`, `cashflowdb`.`customers`.`currency`, `cashflowdb`.`customers`.`taxRate`, `cashflowdb`.`customers`.`paymentTerms`, `cashflowdb`.`customers`.`openingBalance`, `cashflowdb`.`customers`.`openingBalanceAccount`, `cashflowdb`.`customers`.`enablePortal`, `cashflowdb`.`customers`.`portalLanguage`, `cashflowdb`.`customers`.`tags`, `cashflowdb`.`customers`.`notes`, `cashflowdb`.`customers`.`remarks`, `cashflowdb`.`customers`.`isActive`, `cashflowdb`.`customers`.`createdAt`, `cashflowdb`.`customers`.`updatedAt`, `cashflowdb`.`customers`.`lastContactAt` FROM `cashflowdb`.`customers` WHERE `cashflowdb`.`customers`.`organizationId` = ? ORDER BY `cashflowdb`.`customers`.`createdAt` DESC
+[32minfo[39m: GET / {"duration":"287ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:58:25.659Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"287ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:58:25.659Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT 1
+prisma:error 
+Invalid `prisma.bank_accounts.findMany()` invocation in
+/Users/zayarmin/Development/openaccounting/apps/bff/src/routes/bankAccounts.ts:10:53
+
+   7 // List bank accounts
+   8 router.get('/', requireJwtAuth, async (req, res) => {
+   9   try {
+→ 10     const bankAccounts = await prisma.bank_accounts.findMany({
+           where: {
+             organizationId: "org_1755939534550"
+           },
+           include: {
+             ledgerAccount: true,
+             ~~~~~~~~~~~~~
+         ?   ledger_accounts?: true,
+         ?   bank_transactions?: true
+           },
+           orderBy: {
+             createdAt: "desc"
+           }
+         })
+
+Unknown field `ledgerAccount` for include statement on model `bank_accounts`. Available options are marked with ?.
+[33mwarn[39m: GET / {"duration":"288ms","ip":"::1","service":"openaccounting-bff","status":500,"timestamp":"2025-09-02T04:58:39.229Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+warn: GET / {"duration":"288ms","ip":"::1","service":"openaccounting-bff","status":500,"timestamp":"2025-09-02T04:58:39.229Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`ledger_accounts`.`id`, `cashflowdb`.`ledger_accounts`.`organizationId`, `cashflowdb`.`ledger_accounts`.`code`, `cashflowdb`.`ledger_accounts`.`name`, `cashflowdb`.`ledger_accounts`.`type`, `cashflowdb`.`ledger_accounts`.`description`, `cashflowdb`.`ledger_accounts`.`isActive`, `cashflowdb`.`ledger_accounts`.`createdAt`, `cashflowdb`.`ledger_accounts`.`updatedAt` FROM `cashflowdb`.`ledger_accounts` WHERE `cashflowdb`.`ledger_accounts`.`organizationId` = ? ORDER BY `cashflowdb`.`ledger_accounts`.`type` ASC, `cashflowdb`.`ledger_accounts`.`code` ASC
+[32minfo[39m: GET / {"duration":"636ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:58:39.870Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"636ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:58:39.870Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`invoices`.`id`, `cashflowdb`.`invoices`.`organizationId`, `cashflowdb`.`invoices`.`oaInvoiceId`, `cashflowdb`.`invoices`.`invoiceNumber`, `cashflowdb`.`invoices`.`customerId`, `cashflowdb`.`invoices`.`orderNumber`, `cashflowdb`.`invoices`.`issueDate`, `cashflowdb`.`invoices`.`dueDate`, `cashflowdb`.`invoices`.`terms`, `cashflowdb`.`invoices`.`status`, `cashflowdb`.`invoices`.`subtotal`, `cashflowdb`.`invoices`.`discount`, `cashflowdb`.`invoices`.`discountPercent`, `cashflowdb`.`invoices`.`shippingCharges`, `cashflowdb`.`invoices`.`adjustment`, `cashflowdb`.`invoices`.`taxAmount`, `cashflowdb`.`invoices`.`totalAmount`, `cashflowdb`.`invoices`.`paidAmount`, `cashflowdb`.`invoices`.`balanceDue`, `cashflowdb`.`invoices`.`currency`, `cashflowdb`.`invoices`.`location`, `cashflowdb`.`invoices`.`warehouse`, `cashflowdb`.`invoices`.`salespersonId`, `cashflowdb`.`invoices`.`branchId`, `cashflowdb`.`invoices`.`subject`, `cashflowdb`.`invoices`.`customerNotes`, `cashflowdb`.`invoices`.`termsConditions`, `cashflowdb`.`invoices`.`journalId`, `cashflowdb`.`invoices`.`createdAt`, `cashflowdb`.`invoices`.`updatedAt` FROM `cashflowdb`.`invoices` WHERE `cashflowdb`.`invoices`.`organizationId` = ? ORDER BY `cashflowdb`.`invoices`.`createdAt` DESC
+prisma:query SELECT `cashflowdb`.`invoice_items`.`id`, `cashflowdb`.`invoice_items`.`invoiceId`, `cashflowdb`.`invoice_items`.`productId`, `cashflowdb`.`invoice_items`.`itemName`, `cashflowdb`.`invoice_items`.`description`, `cashflowdb`.`invoice_items`.`quantity`, `cashflowdb`.`invoice_items`.`unit`, `cashflowdb`.`invoice_items`.`rate`, `cashflowdb`.`invoice_items`.`discount`, `cashflowdb`.`invoice_items`.`discountPercent`, `cashflowdb`.`invoice_items`.`taxId`, `cashflowdb`.`invoice_items`.`taxPercent`, `cashflowdb`.`invoice_items`.`taxAmount`, `cashflowdb`.`invoice_items`.`amount`, `cashflowdb`.`invoice_items`.`salesAccountId`, `cashflowdb`.`invoice_items`.`createdAt`, `cashflowdb`.`invoice_items`.`updatedAt` FROM `cashflowdb`.`invoice_items` WHERE `cashflowdb`.`invoice_items`.`invoiceId` IN (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+prisma:query SELECT `cashflowdb`.`customers`.`id`, `cashflowdb`.`customers`.`organizationId`, `cashflowdb`.`customers`.`oaCustomerId`, `cashflowdb`.`customers`.`name`, `cashflowdb`.`customers`.`displayName`, `cashflowdb`.`customers`.`email`, `cashflowdb`.`customers`.`phone`, `cashflowdb`.`customers`.`mobile`, `cashflowdb`.`customers`.`customerType`, `cashflowdb`.`customers`.`salutation`, `cashflowdb`.`customers`.`firstName`, `cashflowdb`.`customers`.`lastName`, `cashflowdb`.`customers`.`companyName`, `cashflowdb`.`customers`.`billingAddress`, `cashflowdb`.`customers`.`shippingAddress`, `cashflowdb`.`customers`.`industry`, `cashflowdb`.`customers`.`source`, `cashflowdb`.`customers`.`priority`, `cashflowdb`.`customers`.`companyId`, `cashflowdb`.`customers`.`currency`, `cashflowdb`.`customers`.`taxRate`, `cashflowdb`.`customers`.`paymentTerms`, `cashflowdb`.`customers`.`openingBalance`, `cashflowdb`.`customers`.`openingBalanceAccount`, `cashflowdb`.`customers`.`enablePortal`, `cashflowdb`.`customers`.`portalLanguage`, `cashflowdb`.`customers`.`tags`, `cashflowdb`.`customers`.`notes`, `cashflowdb`.`customers`.`remarks`, `cashflowdb`.`customers`.`isActive`, `cashflowdb`.`customers`.`createdAt`, `cashflowdb`.`customers`.`updatedAt`, `cashflowdb`.`customers`.`lastContactAt` FROM `cashflowdb`.`customers` WHERE `cashflowdb`.`customers`.`id` IN (?,?,?)
+[32minfo[39m: GET / {"duration":"1742ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:58:52.259Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"1742ms","ip":"::1","service":"openaccounting-bff","status":200,"timestamp":"2025-09-02T04:58:52.259Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT `cashflowdb`.`customers`.`id`, `cashflowdb`.`customers`.`organizationId`, `cashflowdb`.`customers`.`oaCustomerId`, `cashflowdb`.`customers`.`name`, `cashflowdb`.`customers`.`displayName`, `cashflowdb`.`customers`.`email`, `cashflowdb`.`customers`.`phone`, `cashflowdb`.`customers`.`mobile`, `cashflowdb`.`customers`.`customerType`, `cashflowdb`.`customers`.`salutation`, `cashflowdb`.`customers`.`firstName`, `cashflowdb`.`customers`.`lastName`, `cashflowdb`.`customers`.`companyName`, `cashflowdb`.`customers`.`billingAddress`, `cashflowdb`.`customers`.`shippingAddress`, `cashflowdb`.`customers`.`industry`, `cashflowdb`.`customers`.`source`, `cashflowdb`.`customers`.`priority`, `cashflowdb`.`customers`.`companyId`, `cashflowdb`.`customers`.`currency`, `cashflowdb`.`customers`.`taxRate`, `cashflowdb`.`customers`.`paymentTerms`, `cashflowdb`.`customers`.`openingBalance`, `cashflowdb`.`customers`.`openingBalanceAccount`, `cashflowdb`.`customers`.`enablePortal`, `cashflowdb`.`customers`.`portalLanguage`, `cashflowdb`.`customers`.`tags`, `cashflowdb`.`customers`.`notes`, `cashflowdb`.`customers`.`remarks`, `cashflowdb`.`customers`.`isActive`, `cashflowdb`.`customers`.`createdAt`, `cashflowdb`.`customers`.`updatedAt`, `cashflowdb`.`customers`.`lastContactAt` FROM `cashflowdb`.`customers` WHERE `cashflowdb`.`customers`.`organizationId` = ? ORDER BY `cashflowdb`.`customers`.`createdAt` DESC
+[32minfo[39m: GET / {"duration":"581ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:55.081Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"581ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:55.081Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`salespersons`.`id`, `cashflowdb`.`salespersons`.`organizationId`, `cashflowdb`.`salespersons`.`name`, `cashflowdb`.`salespersons`.`email`, `cashflowdb`.`salespersons`.`status`, `cashflowdb`.`salespersons`.`createdAt`, `cashflowdb`.`salespersons`.`updatedAt` FROM `cashflowdb`.`salespersons` WHERE (`cashflowdb`.`salespersons`.`organizationId` = ? AND `cashflowdb`.`salespersons`.`status` = ?) ORDER BY `cashflowdb`.`salespersons`.`name` ASC
+[32minfo[39m: GET / {"duration":"866ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:55.368Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"866ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:55.368Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`products`.`id`, `cashflowdb`.`products`.`organizationId`, `cashflowdb`.`products`.`oaItemId`, `cashflowdb`.`products`.`name`, `cashflowdb`.`products`.`sku`, `cashflowdb`.`products`.`type`, `cashflowdb`.`products`.`description`, `cashflowdb`.`products`.`unit`, `cashflowdb`.`products`.`sellingPrice`, `cashflowdb`.`products`.`costPrice`, `cashflowdb`.`products`.`currency`, `cashflowdb`.`products`.`salesAccountId`, `cashflowdb`.`products`.`purchaseAccountId`, `cashflowdb`.`products`.`category`, `cashflowdb`.`products`.`brand`, `cashflowdb`.`products`.`tags`, `cashflowdb`.`products`.`trackInventory`, `cashflowdb`.`products`.`currentStock`, `cashflowdb`.`products`.`lowStockAlert`, `cashflowdb`.`products`.`isActive`, `cashflowdb`.`products`.`createdAt`, `cashflowdb`.`products`.`updatedAt`, `cashflowdb`.`products`.`inventoryAccountId`, `cashflowdb`.`products`.`inventoryValuationMethod` FROM `cashflowdb`.`products` WHERE `cashflowdb`.`products`.`organizationId` = ? ORDER BY `cashflowdb`.`products`.`createdAt` DESC
+prisma:query SELECT `cashflowdb`.`branches`.`id`, `cashflowdb`.`branches`.`organizationId`, `cashflowdb`.`branches`.`name`, `cashflowdb`.`branches`.`addressLine1`, `cashflowdb`.`branches`.`addressLine2`, `cashflowdb`.`branches`.`city`, `cashflowdb`.`branches`.`state`, `cashflowdb`.`branches`.`postalCode`, `cashflowdb`.`branches`.`country`, `cashflowdb`.`branches`.`phone`, `cashflowdb`.`branches`.`fax`, `cashflowdb`.`branches`.`website`, `cashflowdb`.`branches`.`defaultTransactionSeries`, `cashflowdb`.`branches`.`isDefault`, `cashflowdb`.`branches`.`createdAt`, `cashflowdb`.`branches`.`updatedAt`, `cashflowdb`.`branches`.`isActive`, COALESCE(`aggr_selection_0_warehouses`.`_aggr_count_warehouses`, 0) AS `_aggr_count_warehouses` FROM `cashflowdb`.`branches` LEFT JOIN (SELECT `cashflowdb`.`warehouses`.`branchId`, COUNT(*) AS `_aggr_count_warehouses` FROM `cashflowdb`.`warehouses` WHERE 1=1 GROUP BY `cashflowdb`.`warehouses`.`branchId`) AS `aggr_selection_0_warehouses` ON (`cashflowdb`.`branches`.`id` = `aggr_selection_0_warehouses`.`branchId`) WHERE `cashflowdb`.`branches`.`organizationId` = ? ORDER BY `cashflowdb`.`branches`.`createdAt` DESC
+[32minfo[39m: GET / {"duration":"1725ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:56.227Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"1725ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:56.227Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`ledger_accounts`.`id`, `cashflowdb`.`ledger_accounts`.`organizationId`, `cashflowdb`.`ledger_accounts`.`code`, `cashflowdb`.`ledger_accounts`.`name`, `cashflowdb`.`ledger_accounts`.`type`, `cashflowdb`.`ledger_accounts`.`description`, `cashflowdb`.`ledger_accounts`.`isActive`, `cashflowdb`.`ledger_accounts`.`createdAt`, `cashflowdb`.`ledger_accounts`.`updatedAt` FROM `cashflowdb`.`ledger_accounts` WHERE `cashflowdb`.`ledger_accounts`.`organizationId` = ? ORDER BY `cashflowdb`.`ledger_accounts`.`type` ASC, `cashflowdb`.`ledger_accounts`.`code` ASC
+[32minfo[39m: GET / {"duration":"1746ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:56.247Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"1746ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:56.247Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`taxes`.`id`, `cashflowdb`.`taxes`.`name`, `cashflowdb`.`taxes`.`rate`, `cashflowdb`.`taxes`.`type`, `cashflowdb`.`taxes`.`isCompound`, `cashflowdb`.`taxes`.`description`, `cashflowdb`.`taxes`.`organizationId`, `cashflowdb`.`taxes`.`isActive`, `cashflowdb`.`taxes`.`createdAt`, `cashflowdb`.`taxes`.`updatedAt` FROM `cashflowdb`.`taxes` WHERE `cashflowdb`.`taxes`.`organizationId` = ? ORDER BY `cashflowdb`.`taxes`.`name` ASC
+[32minfo[39m: GET / {"duration":"1755ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:56.256Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"1755ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:56.256Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`ledger_accounts`.`id`, `cashflowdb`.`ledger_accounts`.`name`, `cashflowdb`.`ledger_accounts`.`code`, `cashflowdb`.`ledger_accounts`.`type` FROM `cashflowdb`.`ledger_accounts` WHERE `cashflowdb`.`ledger_accounts`.`id` IN (?)
+prisma:query SELECT `cashflowdb`.`ledger_accounts`.`id`, `cashflowdb`.`ledger_accounts`.`name`, `cashflowdb`.`ledger_accounts`.`code`, `cashflowdb`.`ledger_accounts`.`type` FROM `cashflowdb`.`ledger_accounts` WHERE `cashflowdb`.`ledger_accounts`.`id` IN (?,?)
+[32minfo[39m: GET / {"duration":"2859ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:57.361Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"2859ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T04:58:57.361Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT 1
+prisma:error 
+Invalid `prisma.idempotency_keys.create()` invocation in
+/Users/zayarmin/Development/openaccounting/apps/bff/src/middleware/idempotency.ts:29:35
+
+  26 
+  27 try {
+  28   // Try to create a new idempotency record. If it exists, unique constraint will fire.
+→ 29   await prisma.idempotency_keys.create({
+         data: {
+           id: "41eff563-fbe7-4315-9d53-a08e02ce04f2",
+           organization_id: "org_1755939534550",
+           endpoint: "/",
+           idempotency_key: "08496c9b-0d5f-4159-925d-f8d0ccf43276",
+           request_hash: "372a382621cb430676fbcbcff34bffe731f6cac87e46a59fc2b541865fd4ada7",
+           expires_at: new Date("2025-09-03T04:59:19.646Z"),
+           status: "processing",
+           updatedAt: new Date("2025-09-02T04:59:19.647Z"),
+           ~~~~~~~~~
+       ?   response_data?: NullableJsonNullValueInput | Json,
+       ?   created_at?: DateTime
+         }
+       })
+
+Unknown argument `updatedAt`. Available options are marked with ?.
+prisma:query SELECT `cashflowdb`.`idempotency_keys`.`id`, `cashflowdb`.`idempotency_keys`.`organization_id`, `cashflowdb`.`idempotency_keys`.`endpoint`, `cashflowdb`.`idempotency_keys`.`idempotency_key`, `cashflowdb`.`idempotency_keys`.`request_hash`, `cashflowdb`.`idempotency_keys`.`response_data`, `cashflowdb`.`idempotency_keys`.`status`, `cashflowdb`.`idempotency_keys`.`created_at`, `cashflowdb`.`idempotency_keys`.`expires_at` FROM `cashflowdb`.`idempotency_keys` WHERE ((`cashflowdb`.`idempotency_keys`.`organization_id` = ? AND `cashflowdb`.`idempotency_keys`.`endpoint` = ? AND `cashflowdb`.`idempotency_keys`.`idempotency_key` = ?) AND 1=1) LIMIT ? OFFSET ?
+[33mwarn[39m: POST / {"duration":"861ms","ip":"::1","service":"openaccounting-bff","status":409,"timestamp":"2025-09-02T04:59:20.507Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+warn: POST / {"duration":"861ms","ip":"::1","service":"openaccounting-bff","status":409,"timestamp":"2025-09-02T04:59:20.507Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+11:32:11 AM [tsx] change in ./src/routes/invoices.ts Restarting...
+[32minfo[39m: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:11.207Z"}
+info: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:11.207Z"}
+[32minfo[39m: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:11.207Z"}
+info: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:11.207Z"}
+[32minfo[39m: HTTP server closed {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:11.208Z"}
+info: HTTP server closed {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:11.208Z"}
+c[32minfo[39m: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:11.467Z","user":"cashflowadmin"}
+info: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:11.467Z","user":"cashflowadmin"}
+Google OAuth disabled - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET
+[32minfo[39m: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:11.630Z"}
+info: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:11.630Z"}
+prisma:info Starting a mysql pool with 25 connections.
+prisma:query SELECT 1 as test
+[32minfo[39m: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.317Z"}
+info: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.317Z"}
+[32minfo[39m: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.318Z"}
+info: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.318Z"}
+[32minfo[39m: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.318Z"}
+info: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.318Z"}
+[32minfo[39m: 🚀 BFF Server running on port 3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.321Z"}
+info: 🚀 BFF Server running on port 3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.321Z"}
+[32minfo[39m: 📝 Environment: development {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.321Z"}
+info: 📝 Environment: development {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.321Z"}
+[32minfo[39m: 🔐 CORS origins: http://localhost:3000, http://localhost:3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.321Z"}
+info: 🔐 CORS origins: http://localhost:3000, http://localhost:3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.321Z"}
+[32minfo[39m: 💾 Database: Connected {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.321Z"}
+info: 💾 Database: Connected {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.321Z"}
+[32minfo[39m: 🔍 Health check: http://localhost:3001/health {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.322Z"}
+info: 🔍 Health check: http://localhost:3001/health {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:13.322Z"}
+11:32:29 AM [tsx] change in ./src/middleware/idempotency.ts Restarting...
+[32minfo[39m: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:29.546Z"}
+info: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:29.546Z"}
+[32minfo[39m: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:29.546Z"}
+info: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:29.546Z"}
+[32minfo[39m: HTTP server closed {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:29.546Z"}
+info: HTTP server closed {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:29.546Z"}
+c[32minfo[39m: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:29.719Z","user":"cashflowadmin"}
+info: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:29.719Z","user":"cashflowadmin"}
+Google OAuth disabled - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET
+[32minfo[39m: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:29.814Z"}
+info: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:29.814Z"}
+prisma:info Starting a mysql pool with 25 connections.
+prisma:query SELECT 1 as test
+[32minfo[39m: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.550Z"}
+info: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.550Z"}
+[32minfo[39m: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.550Z"}
+info: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.550Z"}
+[32minfo[39m: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.551Z"}
+info: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.551Z"}
+[32minfo[39m: 🚀 BFF Server running on port 3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.554Z"}
+info: 🚀 BFF Server running on port 3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.554Z"}
+[32minfo[39m: 📝 Environment: development {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.554Z"}
+info: 📝 Environment: development {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.554Z"}
+[32minfo[39m: 🔐 CORS origins: http://localhost:3000, http://localhost:3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.554Z"}
+info: 🔐 CORS origins: http://localhost:3000, http://localhost:3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.554Z"}
+[32minfo[39m: 💾 Database: Connected {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.554Z"}
+info: 💾 Database: Connected {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.554Z"}
+[32minfo[39m: 🔍 Health check: http://localhost:3001/health {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.555Z"}
+info: 🔍 Health check: http://localhost:3001/health {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:31.555Z"}
+11:32:38 AM [tsx] change in ./src/schemas/invoices.ts Restarting...
+[32minfo[39m: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:38.158Z"}
+info: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:38.158Z"}
+[32minfo[39m: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:38.158Z"}
+info: Received SIGTERM, shutting down gracefully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:38.158Z"}
+[32minfo[39m: HTTP server closed {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:38.159Z"}
+info: HTTP server closed {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:38.159Z"}
+c[32minfo[39m: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:38.343Z","user":"cashflowadmin"}
+info: 🔒 Initializing Cloud SQL connection ONLY {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:38.343Z","user":"cashflowadmin"}
+Google OAuth disabled - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET
+[32minfo[39m: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:38.438Z"}
+info: 🚀 Initializing Cloud SQL database connection... {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:38.438Z"}
+prisma:info Starting a mysql pool with 25 connections.
+prisma:query SELECT 1 as test
+[32minfo[39m: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.127Z"}
+info: ✅ Cloud SQL connection test successful {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.127Z"}
+[32minfo[39m: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.128Z"}
+info: ✅ Cloud SQL database initialized successfully {"database":"cashflowdb","host":"34.173.128.29","service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.128Z"}
+[32minfo[39m: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.129Z"}
+info: Database initialized successfully {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.129Z"}
+[32minfo[39m: 🚀 BFF Server running on port 3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.132Z"}
+info: 🚀 BFF Server running on port 3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.132Z"}
+[32minfo[39m: 📝 Environment: development {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.132Z"}
+info: 📝 Environment: development {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.132Z"}
+[32minfo[39m: 🔐 CORS origins: http://localhost:3000, http://localhost:3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.132Z"}
+info: 🔐 CORS origins: http://localhost:3000, http://localhost:3001 {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.132Z"}
+[32minfo[39m: 💾 Database: Connected {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.133Z"}
+info: 💾 Database: Connected {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.133Z"}
+[32minfo[39m: 🔍 Health check: http://localhost:3001/health {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.133Z"}
+info: 🔍 Health check: http://localhost:3001/health {"service":"openaccounting-bff","timestamp":"2025-09-02T05:02:40.133Z"}
+ValidationError: The 'X-Forwarded-For' header is set but the Express 'trust proxy' setting is false (default). This could indicate a misconfiguration which would prevent express-rate-limit from accurately identifying users. See https://express-rate-limit.github.io/ERR_ERL_UNEXPECTED_X_FORWARDED_FOR/ for more information.
+    at Object.xForwardedForHeader (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:185:13)
+    at wrappedValidations.<computed> [as xForwardedForHeader] (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:397:22)
+    at Object.keyGenerator (/Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:658:20)
+    at /Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:710:32
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async /Users/zayarmin/Development/openaccounting/apps/bff/node_modules/express-rate-limit/dist/index.cjs:691:5 {
+  code: 'ERR_ERL_UNEXPECTED_X_FORWARDED_FOR',
+  help: 'https://express-rate-limit.github.io/ERR_ERL_UNEXPECTED_X_FORWARDED_FOR/'
+}
+prisma:info Starting a mysql pool with 25 connections.
+prisma:query SELECT `cashflowdb`.`customers`.`id`, `cashflowdb`.`customers`.`organizationId`, `cashflowdb`.`customers`.`oaCustomerId`, `cashflowdb`.`customers`.`name`, `cashflowdb`.`customers`.`displayName`, `cashflowdb`.`customers`.`email`, `cashflowdb`.`customers`.`phone`, `cashflowdb`.`customers`.`mobile`, `cashflowdb`.`customers`.`customerType`, `cashflowdb`.`customers`.`salutation`, `cashflowdb`.`customers`.`firstName`, `cashflowdb`.`customers`.`lastName`, `cashflowdb`.`customers`.`companyName`, `cashflowdb`.`customers`.`billingAddress`, `cashflowdb`.`customers`.`shippingAddress`, `cashflowdb`.`customers`.`industry`, `cashflowdb`.`customers`.`source`, `cashflowdb`.`customers`.`priority`, `cashflowdb`.`customers`.`companyId`, `cashflowdb`.`customers`.`currency`, `cashflowdb`.`customers`.`taxRate`, `cashflowdb`.`customers`.`paymentTerms`, `cashflowdb`.`customers`.`openingBalance`, `cashflowdb`.`customers`.`openingBalanceAccount`, `cashflowdb`.`customers`.`enablePortal`, `cashflowdb`.`customers`.`portalLanguage`, `cashflowdb`.`customers`.`tags`, `cashflowdb`.`customers`.`notes`, `cashflowdb`.`customers`.`remarks`, `cashflowdb`.`customers`.`isActive`, `cashflowdb`.`customers`.`createdAt`, `cashflowdb`.`customers`.`updatedAt`, `cashflowdb`.`customers`.`lastContactAt` FROM `cashflowdb`.`customers` WHERE `cashflowdb`.`customers`.`organizationId` = ? ORDER BY `cashflowdb`.`customers`.`createdAt` DESC
+[32minfo[39m: GET / {"duration":"567ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:54.274Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"567ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:54.274Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`salespersons`.`id`, `cashflowdb`.`salespersons`.`organizationId`, `cashflowdb`.`salespersons`.`name`, `cashflowdb`.`salespersons`.`email`, `cashflowdb`.`salespersons`.`status`, `cashflowdb`.`salespersons`.`createdAt`, `cashflowdb`.`salespersons`.`updatedAt` FROM `cashflowdb`.`salespersons` WHERE (`cashflowdb`.`salespersons`.`organizationId` = ? AND `cashflowdb`.`salespersons`.`status` = ?) ORDER BY `cashflowdb`.`salespersons`.`name` ASC
+prisma:query SELECT `cashflowdb`.`branches`.`id`, `cashflowdb`.`branches`.`organizationId`, `cashflowdb`.`branches`.`name`, `cashflowdb`.`branches`.`addressLine1`, `cashflowdb`.`branches`.`addressLine2`, `cashflowdb`.`branches`.`city`, `cashflowdb`.`branches`.`state`, `cashflowdb`.`branches`.`postalCode`, `cashflowdb`.`branches`.`country`, `cashflowdb`.`branches`.`phone`, `cashflowdb`.`branches`.`fax`, `cashflowdb`.`branches`.`website`, `cashflowdb`.`branches`.`defaultTransactionSeries`, `cashflowdb`.`branches`.`isDefault`, `cashflowdb`.`branches`.`createdAt`, `cashflowdb`.`branches`.`updatedAt`, `cashflowdb`.`branches`.`isActive`, COALESCE(`aggr_selection_0_warehouses`.`_aggr_count_warehouses`, 0) AS `_aggr_count_warehouses` FROM `cashflowdb`.`branches` LEFT JOIN (SELECT `cashflowdb`.`warehouses`.`branchId`, COUNT(*) AS `_aggr_count_warehouses` FROM `cashflowdb`.`warehouses` WHERE 1=1 GROUP BY `cashflowdb`.`warehouses`.`branchId`) AS `aggr_selection_0_warehouses` ON (`cashflowdb`.`branches`.`id` = `aggr_selection_0_warehouses`.`branchId`) WHERE `cashflowdb`.`branches`.`organizationId` = ? ORDER BY `cashflowdb`.`branches`.`createdAt` DESC
+prisma:query SELECT `cashflowdb`.`ledger_accounts`.`id`, `cashflowdb`.`ledger_accounts`.`organizationId`, `cashflowdb`.`ledger_accounts`.`code`, `cashflowdb`.`ledger_accounts`.`name`, `cashflowdb`.`ledger_accounts`.`type`, `cashflowdb`.`ledger_accounts`.`description`, `cashflowdb`.`ledger_accounts`.`isActive`, `cashflowdb`.`ledger_accounts`.`createdAt`, `cashflowdb`.`ledger_accounts`.`updatedAt` FROM `cashflowdb`.`ledger_accounts` WHERE `cashflowdb`.`ledger_accounts`.`organizationId` = ? ORDER BY `cashflowdb`.`ledger_accounts`.`type` ASC, `cashflowdb`.`ledger_accounts`.`code` ASC
+prisma:query SELECT `cashflowdb`.`products`.`id`, `cashflowdb`.`products`.`organizationId`, `cashflowdb`.`products`.`oaItemId`, `cashflowdb`.`products`.`name`, `cashflowdb`.`products`.`sku`, `cashflowdb`.`products`.`type`, `cashflowdb`.`products`.`description`, `cashflowdb`.`products`.`unit`, `cashflowdb`.`products`.`sellingPrice`, `cashflowdb`.`products`.`costPrice`, `cashflowdb`.`products`.`currency`, `cashflowdb`.`products`.`salesAccountId`, `cashflowdb`.`products`.`purchaseAccountId`, `cashflowdb`.`products`.`category`, `cashflowdb`.`products`.`brand`, `cashflowdb`.`products`.`tags`, `cashflowdb`.`products`.`trackInventory`, `cashflowdb`.`products`.`currentStock`, `cashflowdb`.`products`.`lowStockAlert`, `cashflowdb`.`products`.`isActive`, `cashflowdb`.`products`.`createdAt`, `cashflowdb`.`products`.`updatedAt`, `cashflowdb`.`products`.`inventoryAccountId`, `cashflowdb`.`products`.`inventoryValuationMethod` FROM `cashflowdb`.`products` WHERE `cashflowdb`.`products`.`organizationId` = ? ORDER BY `cashflowdb`.`products`.`createdAt` DESC
+[32minfo[39m: GET / {"duration":"1747ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:55.455Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"1747ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:55.455Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+[32minfo[39m: GET / {"duration":"1746ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:55.455Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"1746ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:55.455Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+[32minfo[39m: GET / {"duration":"1746ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:55.455Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"1746ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:55.455Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+prisma:query SELECT `cashflowdb`.`ledger_accounts`.`id`, `cashflowdb`.`ledger_accounts`.`name`, `cashflowdb`.`ledger_accounts`.`code`, `cashflowdb`.`ledger_accounts`.`type` FROM `cashflowdb`.`ledger_accounts` WHERE `cashflowdb`.`ledger_accounts`.`id` IN (?)
+prisma:query SELECT `cashflowdb`.`taxes`.`id`, `cashflowdb`.`taxes`.`name`, `cashflowdb`.`taxes`.`rate`, `cashflowdb`.`taxes`.`type`, `cashflowdb`.`taxes`.`isCompound`, `cashflowdb`.`taxes`.`description`, `cashflowdb`.`taxes`.`organizationId`, `cashflowdb`.`taxes`.`isActive`, `cashflowdb`.`taxes`.`createdAt`, `cashflowdb`.`taxes`.`updatedAt` FROM `cashflowdb`.`taxes` WHERE `cashflowdb`.`taxes`.`organizationId` = ? ORDER BY `cashflowdb`.`taxes`.`name` ASC
+prisma:query SELECT `cashflowdb`.`ledger_accounts`.`id`, `cashflowdb`.`ledger_accounts`.`name`, `cashflowdb`.`ledger_accounts`.`code`, `cashflowdb`.`ledger_accounts`.`type` FROM `cashflowdb`.`ledger_accounts` WHERE `cashflowdb`.`ledger_accounts`.`id` IN (?,?)
+[32minfo[39m: GET / {"duration":"2867ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:56.576Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"2867ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:56.576Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+[32minfo[39m: GET / {"duration":"2869ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:56.577Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}
+info: GET / {"duration":"2869ms","ip":"::1","service":"openaccounting-bff","status":304,"timestamp":"2025-09-02T05:02:56.577Z","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"}

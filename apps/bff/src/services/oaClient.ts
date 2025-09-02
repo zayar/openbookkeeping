@@ -1,5 +1,5 @@
 import fetch from 'node-fetch'
-import { loadConfig } from '../../../packages/config/src/loadConfig'
+import { loadConfig } from '@openaccounting/config'
 import { logger } from '../utils/logger'
 import { CacheService, OrganizationService } from './database'
 

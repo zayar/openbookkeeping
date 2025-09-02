@@ -1,6 +1,6 @@
 import { defaultChartOfAccounts } from '../data/chartOfAccounts';
 import { logger } from '../utils/logger';
-import { loadConfig } from '../../../packages/config/src/loadConfig'
+import { loadConfig } from '@openaccounting/config'
 
 export interface SeededAccount {
   id: string;

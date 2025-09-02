@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { loadConfig } from '../../../packages/config/src/loadConfig'
+import { loadConfig } from '@openaccounting/config'
 import { AuthenticatedRequest } from '../middleware/auth';
 import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';

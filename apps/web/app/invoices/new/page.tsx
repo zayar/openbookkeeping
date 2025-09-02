@@ -312,38 +312,54 @@ export default function NewInvoicePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!token || !formData.customerId) return
+    if (!token || !formData.customerId || loading) return
 
     setLoading(true)
     try {
       // Generate idempotency key for safe invoice creation
       const idempotencyKey = `invoice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       
+      const requestData = {
+        ...formData,
+        salespersonId: formData.salesperson || null, // Map to the correct field name
+        branchId: formData.branchId || null, // Add branch ID
+        items: items.filter(item => item.itemName.trim() !== '').map(item => ({
+          ...item,
+          quantity: Number(item.quantity) || 0,
+          rate: Number(item.rate) || 0,
+          discount: Number(item.discount) || 0,
+          discountPercent: Number(item.discountPercent) || 0,
+          taxAmount: Number(item.taxAmount) || 0,
+          taxPercent: Number(item.taxPercent) || 0,
+          amount: Number(item.amount) || 0
+        }))
+      }
+      
+      console.log('Submitting invoice data:', requestData)
+      
       const response = await fetch('/api/invoices', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'X-Idempotency-Key': idempotencyKey
+          'Idempotency-Key': idempotencyKey
         },
-        body: JSON.stringify({
-          ...formData,
-          salespersonId: formData.salesperson, // Map to the correct field name
-          branchId: formData.branchId, // Add branch ID
-          items: items.filter(item => item.itemName.trim() !== '')
-        })
+        body: JSON.stringify(requestData)
       })
 
       const data = await response.json()
+      console.log('Invoice creation response:', data)
       
-      if (data.success) {
+      if (response.ok && data.success) {
         router.push(`/invoices/${data.data.id}`)
       } else {
-        alert(`Error: ${data.error}`)
+        const errorMsg = data.error || `HTTP ${response.status}: ${response.statusText}`
+        console.error('Invoice creation failed:', data)
+        alert(`Failed to create invoice: ${errorMsg}`)
       }
     } catch (error) {
       console.error('Error creating invoice:', error)
-      alert('Failed to create invoice')
+      alert('Network error: Failed to create invoice')
     } finally {
       setLoading(false)
     }

@@ -21,8 +21,8 @@ const EnvSchema = z.object({
   LOG_LEVEL: z.enum(['fatal','error','warn','info','debug','trace']).default('info'),
   ALLOWED_ORIGINS: z.string().optional(),
   COOKIE_SECRET: z.string().min(8).optional(),
-  RATE_LIMIT_WINDOW_MS: z.string().transform(s => parseInt(s)).default(900000),
-  RATE_LIMIT_MAX_REQUESTS: z.string().transform(s => parseInt(s)).default(100)
+  RATE_LIMIT_WINDOW_MS: z.string().transform(s => parseInt(s)).default('900000'),
+  RATE_LIMIT_MAX_REQUESTS: z.string().transform(s => parseInt(s)).default('100')
 }).refine((val) => {
   // Either DB_URL or (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME) must be present in production
   if (val.NODE_ENV === 'production') {
